@@ -9,6 +9,8 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@agent-log-search/shared": "workspace:*"
+  },
   "devDependencies": {}
 }

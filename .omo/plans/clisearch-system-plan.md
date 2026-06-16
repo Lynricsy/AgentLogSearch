@@ -172,7 +172,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Shell: `git config --local --list && git remote -v`; save to `.omo/evidence/task-1-git.txt`.
   Commit: Y | `chore(workspace): 🧱 initialize monorepo workspace` | root config, README, env, compose skeleton
 
-- [ ] T2. 搭建 shared 契约、错误模型和验证 schema
+- [x] T2. 搭建 shared 契约、错误模型和验证 schema
   What to do / Must NOT do:
   - 在 `packages/shared` 定义 DTO/type/schema：sources、scan jobs、sessions、messages、chunks、search、embedding status、parser types、source presets、source reader types。
   - 明确 API 错误响应格式、分页默认/上限、`topK/sessionLimit` 默认和上限。

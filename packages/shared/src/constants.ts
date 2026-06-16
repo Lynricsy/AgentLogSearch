@@ -1,0 +1,31 @@
+import { z } from "zod"
+
+export const SOURCE_PRESETS = ["codex", "claude-code", "pi-agent", "opencode", "generic"] as const
+
+export const PARSER_TYPES = [
+  "codex-jsonl",
+  "claude-jsonl",
+  "pi-jsonl",
+  "opencode-sqlite",
+  "generic-jsonl",
+  "generic-json",
+  "generic-markdown",
+] as const
+
+export const SOURCE_READER_TYPES = ["file-glob", "sqlite"] as const
+
+export const EMBEDDING_STATUSES = ["pending", "processing", "ready", "failed"] as const
+
+export const SCAN_JOB_STATUSES = ["queued", "running", "completed", "failed"] as const
+
+export const sourcePresetSchema = z.enum(SOURCE_PRESETS)
+export const parserTypeSchema = z.enum(PARSER_TYPES)
+export const sourceReaderTypeSchema = z.enum(SOURCE_READER_TYPES)
+export const embeddingStatusSchema = z.enum(EMBEDDING_STATUSES)
+export const scanJobStatusSchema = z.enum(SCAN_JOB_STATUSES)
+
+export type SourcePreset = z.infer<typeof sourcePresetSchema>
+export type ParserType = z.infer<typeof parserTypeSchema>
+export type SourceReaderType = z.infer<typeof sourceReaderTypeSchema>
+export type EmbeddingStatus = z.infer<typeof embeddingStatusSchema>
+export type ScanJobStatus = z.infer<typeof scanJobStatusSchema>
