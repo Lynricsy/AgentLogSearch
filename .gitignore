@@ -1,11 +1,18 @@
 node_modules/
 .pnpm-store/
+**/node_modules/
 
 dist/
+**/dist/
 build/
+**/build/
 .next/
+**/.next/
 coverage/
+**/coverage/
 *.tsbuildinfo
+.playwright-mcp/
+**/.playwright-mcp/
 
 .env
 .env.*

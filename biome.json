@@ -4,10 +4,18 @@
     "includes": [
       "**",
       "!node_modules",
+      "!**/node_modules",
       "!dist",
+      "!**/dist",
       "!build",
+      "!**/build",
       "!.next",
+      "!**/.next",
       "!coverage",
+      "!**/coverage",
+      "!.playwright-mcp",
+      "!**/.playwright-mcp",
+      "!apps/web/next-env.d.ts",
       "!pnpm-lock.yaml",
       "!.omo/evidence",
       "!AgentLogs"

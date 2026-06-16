@@ -190,7 +190,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Shell: run shared tests and typecheck; save to `.omo/evidence/task-2-shared-tests.txt`.
   Commit: Y | `feat(shared): 🧩 define API contracts and validation schemas` | `packages/shared`
 
-- [ ] T3. 搭建 Next.js App Router + Tailwind + HeroUI 基础壳
+- [x] T3. 搭建 Next.js App Router + Tailwind + HeroUI 基础壳
   What to do / Must NOT do:
   - 创建 `apps/web` Next.js App Router 项目结构：`app/layout.tsx`、`app/page.tsx` 重定向 `/search`、`app/providers.tsx`、`app/globals.css`。
   - 接入 Tailwind CSS、HeroUIProvider、基础 AppShell 导航。

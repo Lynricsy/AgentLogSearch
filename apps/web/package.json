@@ -4,13 +4,30 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
-    "lint": "biome check .",
+    "build": "next build",
+    "dev": "next dev",
+    "lint": "biome check app components next.config.ts postcss.config.mjs tailwind.config.mjs vitest.config.ts package.json tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@agent-log-search/shared": "workspace:*"
+    "@agent-log-search/shared": "workspace:*",
+    "@heroui/react": "2.8.10",
+    "framer-motion": "12.40.0",
+    "lucide-react": "1.18.0",
+    "next": "16.2.9",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "tailwindcss": "4.3.1"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "25.9.3",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "jsdom": "29.1.1"
+  },
+  "packageManager": "pnpm@10.14.0"
 }
