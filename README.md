@@ -1,36 +1,73 @@
 # AgentLogSearch
 
 AgentLogSearch is a local-first semantic search workspace for Agent CLI conversation history.
-The first implementation target is a localhost development system that scans local history files,
-normalizes sessions and messages, builds searchable chunks, and shows copy-only resume commands.
+The target development system runs on localhost, indexes local history files, normalizes sessions
+and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-This repository is in the T1 workspace initialization stage. The current code only establishes the
-pnpm monorepo, shared TypeScript settings, placeholder workspace scripts, Docker Compose database
-service, and documentation boundaries. Application features are implemented in later tasks.
+The project has completed the T1-T6 foundation work:
+
+- pnpm monorepo workspace and shared TypeScript configuration.
+- `packages/shared` contracts for source presets, API payloads, and route-facing types.
+- `apps/web` Next.js shell with API client wiring and initial routes.
+- `apps/api` NestJS service with `/api/health`.
+- PostgreSQL, Prisma, and pgvector schema/migration/service foundation for sources, history files,
+  sessions, messages, chunks, scan jobs, and embedding jobs.
+
+The scanner, parser/import pipeline, embedding worker, semantic search implementation, and final
+search UI workflows are still pending.
 
 ## Workspace
 
-- `apps/web`: Next.js web application placeholder for the search UI.
-- `apps/api`: NestJS API placeholder for backend services.
-- `packages/shared`: shared contracts and source preset types.
+- `apps/web`: Next.js application shell for the search UI, using the shared contracts and API client.
+- `apps/api`: NestJS API service with health checks, Prisma setup, and database service tests.
+- `packages/shared`: shared contracts, source preset definitions, and typed API shapes.
 
 ## Local Privacy Boundary
 
 AgentLogSearch is designed to run on localhost by default. Local Agent CLI history stays on the
-developer machine during the first implementation wave. Resume commands are displayed and copied
-only; the application must never execute `codex resume`, `claude --resume`, `pi --session`, or
+developer machine during this implementation wave. Resume commands are displayed and copied only;
+the application must never execute `codex resume`, `claude --resume`, `pi --session`, or
 `opencode --session` on behalf of the user.
 
-The repository intentionally ignores local evidence and private working logs by default:
+Do not commit private local state:
 
-- `AgentLogs/` is for local agent work logs and is not committed by default.
-- `.omo/evidence/` is for local verification artifacts and is not committed by default.
-- `.env` and `.env.*` are ignored; use `.env.example` as the committed template.
+- `AgentLogs/`
+- `.omo/evidence/`
+- `.env` or `.env.*`
+- real personal Agent CLI history, API tokens, environment dumps, cookies, or raw private logs
 
-Do not commit real personal Agent CLI history, API tokens, environment dumps, cookies, or raw private
-logs.
+Use `.env.example` as the committed environment template.
+
+## Database
+
+Local PostgreSQL is provided by Docker Compose:
+
+- Image: `pgvector/pgvector:pg17`
+- Host: `localhost`
+- Port: `5432`
+- Database/user/password: `agent_log_search`
+- `DATABASE_URL`: copied from `.env.example`
+
+Start the database:
+
+```bash
+docker compose up -d postgres
+```
+
+Generate the Prisma client and apply migrations:
+
+```bash
+pnpm --filter api prisma:generate
+pnpm --filter api prisma:migrate
+```
+
+Run the database service test:
+
+```bash
+pnpm --filter api test -- database.service.spec.ts
+```
 
 ## First-Class Sources Planned
 
@@ -48,7 +85,7 @@ Install dependencies:
 pnpm install
 ```
 
-Run the T1 gates:
+Run the standard gates:
 
 ```bash
 pnpm lint
@@ -56,8 +93,23 @@ pnpm typecheck
 pnpm test
 ```
 
-Start the local PostgreSQL service when later database tasks require it:
+Start the API:
 
 ```bash
-docker compose up -d postgres
+pnpm --filter api dev
 ```
+
+The API listens on `API_PORT` from `.env.example` and defaults to `3001`. Health check:
+
+```bash
+curl http://localhost:3001/api/health
+```
+
+Start the web app:
+
+```bash
+pnpm --filter web dev
+```
+
+The web app uses `NEXT_PUBLIC_API_BASE_URL` from `.env.example` and defaults to
+`http://localhost:3001/api`.

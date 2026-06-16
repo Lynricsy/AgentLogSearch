@@ -1,0 +1,261 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SourcePreset {
+  codex
+  claude_code
+  pi_agent
+  opencode
+  generic
+
+  @@map("source_preset")
+}
+
+enum ParserType {
+  codex_jsonl
+  claude_jsonl
+  pi_jsonl
+  opencode_sqlite
+  generic_jsonl
+  generic_json
+  generic_markdown
+
+  @@map("parser_type")
+}
+
+enum SourceReaderType {
+  file_glob
+  sqlite
+
+  @@map("source_reader_type")
+}
+
+enum AgentRole {
+  system
+  user
+  assistant
+  tool
+  unknown
+
+  @@map("agent_role")
+}
+
+enum ParseStatus {
+  pending
+  processing
+  ready
+  failed
+
+  @@map("parse_status")
+}
+
+enum ScanJobStatus {
+  queued
+  running
+  completed
+  failed
+
+  @@map("scan_job_status")
+}
+
+enum EmbeddingStatus {
+  pending
+  processing
+  ready
+  failed
+
+  @@map("embedding_status")
+}
+
+enum EmbeddingJobStatus {
+  queued
+  running
+  completed
+  failed
+
+  @@map("embedding_job_status")
+}
+
+enum EmbeddingJobRequester {
+  process
+  rebuild
+  scheduler
+  manual
+
+  @@map("embedding_job_requester")
+}
+
+model AgentSource {
+  id                  BigInt           @id @default(autoincrement())
+  name                String           @db.VarChar(100)
+  sourcePreset        SourcePreset     @map("source_preset")
+  parserType          ParserType       @map("parser_type")
+  readerType          SourceReaderType @map("reader_type")
+  rootPath            String           @map("root_path")
+  fileGlob            String           @default("**/*") @map("file_glob") @db.VarChar(200)
+  resumeTemplate      String           @map("resume_template")
+  enabled             Boolean          @default(true)
+  scanIntervalSeconds Int              @default(300) @map("scan_interval_seconds")
+  lastScanAt          DateTime?        @map("last_scan_at")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  chunks        AgentChunk[]
+  embeddingJobs EmbeddingJob[]
+  historyFiles  HistoryFile[]
+  scanJobs      ScanJob[]
+  sessions      AgentSession[]
+
+  @@index([enabled], map: "idx_agent_source_enabled")
+  @@map("agent_source")
+}
+
+model HistoryFile {
+  id            BigInt      @id @default(autoincrement())
+  sourceId      BigInt      @map("source_id")
+  filePath      String      @map("file_path")
+  fileHash      String?     @map("file_hash") @db.VarChar(128)
+  fileSize      BigInt      @default(0) @map("file_size")
+  modifiedAt    DateTime?   @map("modified_at")
+  lastScannedAt DateTime?   @map("last_scanned_at")
+  parseStatus   ParseStatus @default(pending) @map("parse_status")
+  errorMessage  String?     @map("error_message")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  source   AgentSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sessions AgentSession[]
+
+  @@unique([sourceId, filePath], map: "history_file_source_path_key")
+  @@index([sourceId], map: "idx_history_file_source")
+  @@index([parseStatus], map: "idx_history_file_parse_status")
+  @@map("history_file")
+}
+
+model AgentSession {
+  id               BigInt    @id @default(autoincrement())
+  sourceId         BigInt    @map("source_id")
+  historyFileId    BigInt?   @map("history_file_id")
+  agentName        String    @map("agent_name") @db.VarChar(100)
+  externalThreadId String    @map("external_thread_id") @db.VarChar(200)
+  title            String?
+  cwd              String?
+  modelName        String?   @map("model_name") @db.VarChar(100)
+  startedAt        DateTime? @map("started_at")
+  lastMessageAt    DateTime? @map("last_message_at")
+  messageCount     Int       @default(0) @map("message_count")
+  resumeCommand    String?   @map("resume_command")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  chunks      AgentChunk[]
+  historyFile HistoryFile?   @relation(fields: [historyFileId], references: [id], onDelete: SetNull)
+  messages    AgentMessage[]
+  source      AgentSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalThreadId], map: "agent_session_source_thread_key")
+  @@index([sourceId], map: "idx_agent_session_source")
+  @@index([externalThreadId], map: "idx_agent_session_thread")
+  @@index([updatedAt], map: "idx_agent_session_updated")
+  @@index([lastMessageAt], map: "idx_agent_session_last_message")
+  @@map("agent_session")
+}
+
+model AgentMessage {
+  id        BigInt    @id @default(autoincrement())
+  sessionId BigInt    @map("session_id")
+  seqNo     Int       @map("seq_no")
+  role      AgentRole
+  content   String
+  model     String?   @db.VarChar(100)
+  createdAt DateTime? @map("created_at")
+
+  session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, seqNo], map: "agent_message_session_seq_key")
+  @@index([sessionId, seqNo], map: "idx_agent_message_session_seq")
+  @@map("agent_message")
+}
+
+model AgentChunk {
+  id                   BigInt          @id @default(autoincrement())
+  sessionId            BigInt          @map("session_id")
+  sourceId             BigInt          @map("source_id")
+  chunkIndex           Int             @map("chunk_index")
+  startMessageSeq      Int?            @map("start_message_seq")
+  endMessageSeq        Int?            @map("end_message_seq")
+  agentName            String?         @map("agent_name") @db.VarChar(100)
+  externalThreadId     String?         @map("external_thread_id") @db.VarChar(200)
+  cwd                  String?
+  chunkText            String          @map("chunk_text")
+  tokenCount           Int?            @map("token_count")
+  embedding            Unsupported("vector(1024)")?
+  embeddingModel       String?         @map("embedding_model") @db.VarChar(100)
+  embeddingStatus      EmbeddingStatus @default(pending) @map("embedding_status")
+  embeddingError       String?         @map("embedding_error")
+  embeddingRequestedAt DateTime?       @map("embedding_requested_at")
+  embeddingReadyAt     DateTime?       @map("embedding_ready_at")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  source  AgentSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, chunkIndex], map: "agent_chunk_session_index_key")
+  @@index([sessionId], map: "idx_agent_chunk_session")
+  @@index([sourceId], map: "idx_agent_chunk_source")
+  @@index([agentName], map: "idx_agent_chunk_agent_name")
+  @@index([embeddingStatus], map: "idx_agent_chunk_embedding_status")
+  @@index([sourceId, embeddingStatus], map: "idx_agent_chunk_source_embedding_status")
+  @@map("agent_chunk")
+}
+
+model ScanJob {
+  id               BigInt        @id @default(autoincrement())
+  sourceId         BigInt?       @map("source_id")
+  status           ScanJobStatus
+  filesDiscovered  Int           @default(0) @map("files_discovered")
+  filesParsed      Int           @default(0) @map("files_parsed")
+  filesFailed      Int           @default(0) @map("files_failed")
+  sessionsImported Int           @default(0) @map("sessions_imported")
+  messagesImported Int           @default(0) @map("messages_imported")
+  chunksCreated    Int           @default(0) @map("chunks_created")
+  errorMessage     String?       @map("error_message")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  startedAt        DateTime?     @map("started_at")
+  finishedAt       DateTime?     @map("finished_at")
+
+  source AgentSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([sourceId], map: "idx_scan_job_source")
+  @@index([status], map: "idx_scan_job_status")
+  @@index([createdAt], map: "idx_scan_job_created")
+  @@map("scan_job")
+}
+
+model EmbeddingJob {
+  id              BigInt                @id @default(autoincrement())
+  sourceId        BigInt?               @map("source_id")
+  status          EmbeddingJobStatus    @default(queued)
+  requestedBy     EmbeddingJobRequester @map("requested_by")
+  totalChunks     Int                   @default(0) @map("total_chunks")
+  processedChunks Int                   @default(0) @map("processed_chunks")
+  failedChunks    Int                   @default(0) @map("failed_chunks")
+  errorMessage    String?               @map("error_message")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  startedAt       DateTime?             @map("started_at")
+  finishedAt      DateTime?             @map("finished_at")
+
+  source AgentSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([sourceId], map: "idx_embedding_job_source")
+  @@index([status], map: "idx_embedding_job_status")
+  @@index([createdAt], map: "idx_embedding_job_created")
+  @@map("embedding_job")
+}

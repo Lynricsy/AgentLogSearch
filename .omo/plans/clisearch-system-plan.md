@@ -241,7 +241,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - HTTP: start API and capture `curl -i /api/health` to `.omo/evidence/task-5-health.http`.
   Commit: Y | `feat(api): 🩺 scaffold NestJS API foundation` | `apps/api`
 
-- [ ] T6. 实现数据库 schema、raw pgvector migration 和数据库服务
+- [x] T6. 实现数据库 schema、raw pgvector migration 和数据库服务
   What to do / Must NOT do:
   - 配置 Prisma schema 与 migrations。
   - 使用 raw SQL migration 创建 `CREATE EXTENSION IF NOT EXISTS vector`、`vector(1024)`、HNSW index。
