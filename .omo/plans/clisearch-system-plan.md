@@ -287,7 +287,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - HTTP: `curl -i -X POST /api/sources` with Demo source returns 201 and includes `parserType`; invalid root returns 400; save `.omo/evidence/task-7-sources.http`.
   Commit: Y | `feat(sources): 🗂️ add source presets and path policy` | sources module, shared types
 
-- [ ] T8. 实现 scan_job/history_file 查询与状态模型
+- [x] T8. 实现 scan_job/history_file 查询与状态模型
   What to do / Must NOT do:
   - 实现 `ScanJobsModule` 和 `HistoryFile` service/query helpers。
   - `GET /api/scan-jobs?page=&pageSize=` 支持分页上限、source 关联字段、错误消息截断。

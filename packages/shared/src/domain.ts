@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { embeddingStatusSchema, scanJobStatusSchema } from "./constants.js"
+import { embeddingStatusSchema, parseStatusSchema, scanJobStatusSchema } from "./constants.js"
 
 export const agentRoleSchema = z.enum(["system", "user", "assistant", "tool", "unknown"])
 
@@ -11,8 +11,15 @@ export const historyFileSchema = z.object({
   fileSize: z.number().int().min(0),
   modifiedAt: z.string().datetime().nullable(),
   lastScannedAt: z.string().datetime().nullable(),
-  parseStatus: scanJobStatusSchema.or(z.literal("pending")),
+  parseStatus: parseStatusSchema,
   errorMessage: z.string().nullable(),
+})
+
+export const scanJobSourceSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  sourcePreset: z.string().min(1),
+  parserType: z.string().min(1),
 })
 
 export const agentSessionSchema = z.object({
@@ -51,14 +58,28 @@ export const agentChunkSchema = z.object({
 export const scanJobSchema = z.object({
   id: z.string().min(1),
   sourceId: z.string().min(1).nullable(),
+  source: scanJobSourceSchema.nullable(),
   status: scanJobStatusSchema,
   filesDiscovered: z.number().int().min(0),
   filesParsed: z.number().int().min(0),
   filesFailed: z.number().int().min(0),
+  sessionsImported: z.number().int().min(0),
+  messagesImported: z.number().int().min(0),
+  chunksCreated: z.number().int().min(0),
   errorMessage: z.string().nullable(),
   createdAt: z.string().datetime(),
   startedAt: z.string().datetime().nullable(),
   finishedAt: z.string().datetime().nullable(),
+})
+
+export const scanJobsResponseSchema = z.object({
+  records: z.array(scanJobSchema),
+  pagination: z.object({
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+    totalItems: z.number().int().min(0),
+    totalPages: z.number().int().min(0),
+  }),
 })
 
 export type AgentRole = z.infer<typeof agentRoleSchema>
@@ -66,4 +87,6 @@ export type HistoryFile = z.infer<typeof historyFileSchema>
 export type AgentSession = z.infer<typeof agentSessionSchema>
 export type AgentMessage = z.infer<typeof agentMessageSchema>
 export type AgentChunk = z.infer<typeof agentChunkSchema>
+export type ScanJobSource = z.infer<typeof scanJobSourceSchema>
 export type ScanJob = z.infer<typeof scanJobSchema>
+export type ScanJobsResponse = z.infer<typeof scanJobsResponseSchema>

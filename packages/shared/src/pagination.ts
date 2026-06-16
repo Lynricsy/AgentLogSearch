@@ -16,6 +16,16 @@ export const paginationQuerySchema = z.object({
     .default(PAGINATION_DEFAULTS.pageSize),
 })
 
+export const paginationQueryStringSchema = z.object({
+  page: z.coerce.number().int().min(1).default(PAGINATION_DEFAULTS.page),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(PAGINATION_DEFAULTS.maxPageSize)
+    .default(PAGINATION_DEFAULTS.pageSize),
+})
+
 export type PaginationQuery = z.infer<typeof paginationQuerySchema>
 
 export const paginatedResponseSchema = <ItemSchema extends z.ZodType>(itemSchema: ItemSchema) =>

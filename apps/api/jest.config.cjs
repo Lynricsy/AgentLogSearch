@@ -22,8 +22,13 @@ module.exports = {
     "^\\./health\\.controller\\.js$": "<rootDir>/src/health.controller.ts",
     "^\\./pg\\.service\\.js$": "<rootDir>/src/database/pg.service.ts",
     "^\\./prisma\\.service\\.js$": "<rootDir>/src/database/prisma.service.ts",
+    "^\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
+    "^\\.\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
+    "^\\./(history-files\\.service|record-readers|scan-job-mapping|scan-jobs\\.controller|scan-jobs\\.module|scan-jobs\\.service)\\.js$":
+      "<rootDir>/src/scan-jobs/$1.ts",
     "^\\./source-mapping\\.js$": "<rootDir>/src/sources/source-mapping.ts",
     "^\\./sources/(.*)\\.js$": "<rootDir>/src/sources/$1.ts",
+    "^\\.\\./sources/(.*)\\.js$": "<rootDir>/src/sources/$1.ts",
     "^\\./path-policy\\.service\\.js$": "<rootDir>/src/sources/path-policy.service.ts",
     "^\\./sources\\.controller\\.js$": "<rootDir>/src/sources/sources.controller.ts",
     "^\\./sources\\.module\\.js$": "<rootDir>/src/sources/sources.module.ts",

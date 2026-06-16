@@ -6,7 +6,9 @@ import {
   apiErrorResponseSchema,
   embeddingStatusSchema,
   historyFileSchema,
+  parseStatusSchema,
   scanJobSchema,
+  scanJobsResponseSchema,
 } from "./index"
 
 describe("shared domain contracts", () => {
@@ -24,7 +26,7 @@ describe("shared domain contracts", () => {
         fileSize: 128,
         modifiedAt: timestamp,
         lastScannedAt: timestamp,
-        parseStatus: "completed",
+        parseStatus: "READY",
         errorMessage: null,
       }),
       session: agentSessionSchema.parse({
@@ -60,10 +62,19 @@ describe("shared domain contracts", () => {
       scanJob: scanJobSchema.parse({
         id: "scan-1",
         sourceId: "source-1",
+        source: {
+          id: "source-1",
+          name: "Codex local",
+          sourcePreset: "codex",
+          parserType: "codex-jsonl",
+        },
         status: "completed",
         filesDiscovered: 1,
         filesParsed: 1,
         filesFailed: 0,
+        sessionsImported: 1,
+        messagesImported: 2,
+        chunksCreated: 1,
         errorMessage: null,
         createdAt: timestamp,
         startedAt: timestamp,
@@ -76,20 +87,61 @@ describe("shared domain contracts", () => {
     expect(parsed.message.role).toBe("assistant")
     expect(parsed.chunk.embeddingStatus).toBe("pending")
     expect(parsed.scanJob.filesParsed).toBe(1)
-    expect(parsed.historyFile.parseStatus).toBe("completed")
+    expect(parsed.historyFile.parseStatus).toBe("READY")
+  })
+
+  it("parses scan job list responses with records and pagination metadata", () => {
+    // Given
+    const timestamp = "2026-06-16T09:00:00.000Z"
+    const payload = {
+      records: [
+        {
+          id: "scan-1",
+          sourceId: null,
+          source: null,
+          status: "failed",
+          filesDiscovered: 1,
+          filesParsed: 0,
+          filesFailed: 1,
+          sessionsImported: 0,
+          messagesImported: 0,
+          chunksCreated: 0,
+          errorMessage: "parse failed",
+          createdAt: timestamp,
+          startedAt: timestamp,
+          finishedAt: timestamp,
+        },
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 1,
+        totalPages: 1,
+      },
+    }
+
+    // When
+    const parsed = scanJobsResponseSchema.parse(payload)
+
+    // Then
+    expect(parsed.records[0]?.status).toBe("failed")
+    expect(parsed.pagination.totalItems).toBe(1)
   })
 
   it("rejects malformed embedding status and API error payloads", () => {
     // Given
     const invalidEmbeddingStatus = "complete"
+    const invalidParseStatus = "completed"
     const invalidApiError = { error: { code: "", message: "" } }
 
     // When
     const embeddingResult = embeddingStatusSchema.safeParse(invalidEmbeddingStatus)
+    const parseStatusResult = parseStatusSchema.safeParse(invalidParseStatus)
     const errorResult = apiErrorResponseSchema.safeParse(invalidApiError)
 
     // Then
     expect(embeddingResult.success).toBe(false)
+    expect(parseStatusResult.success).toBe(false)
     expect(errorResult.success).toBe(false)
   })
 })

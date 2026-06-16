@@ -6,7 +6,7 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T6 foundation work:
+The project has completed the T1-T8 foundation work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
@@ -14,6 +14,8 @@ The project has completed the T1-T6 foundation work:
 - `apps/api` NestJS service with `/api/health`.
 - PostgreSQL, Prisma, and pgvector schema/migration/service foundation for sources, history files,
   sessions, messages, chunks, scan jobs, and embedding jobs.
+- Scan job listing API with source metadata, pagination bounds, explicit parse status mapping, and
+  truncated list error messages.
 
 The scanner, parser/import pipeline, embedding worker, semantic search implementation, and final
 search UI workflows are still pending.
@@ -94,6 +96,51 @@ is normalized before storage, and must point to an existing directory. Symlink r
 unless the request explicitly sets `followSymlinks: true`. Scan guard fields
 `maxFileSizeBytes`, `maxFilesPerScan`, and `followSymlinks` are validated at the API boundary;
 the scanner persistence model lands in the later scan implementation.
+
+## Scan Jobs API
+
+The API exposes scan history under `GET /api/scan-jobs?page=1&pageSize=20`.
+
+Response shape:
+
+```json
+{
+  "records": [
+    {
+      "id": "1",
+      "sourceId": "1",
+      "source": {
+        "id": "1",
+        "name": "Codex local",
+        "sourcePreset": "codex",
+        "parserType": "codex-jsonl"
+      },
+      "status": "completed",
+      "filesDiscovered": 1,
+      "filesParsed": 1,
+      "filesFailed": 0,
+      "sessionsImported": 1,
+      "messagesImported": 12,
+      "chunksCreated": 3,
+      "errorMessage": null,
+      "createdAt": "2026-06-16T10:00:00.000Z",
+      "startedAt": "2026-06-16T10:00:00.000Z",
+      "finishedAt": "2026-06-16T10:00:01.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "totalItems": 1,
+    "totalPages": 1
+  }
+}
+```
+
+`page` starts at `1`, `pageSize` defaults to `20`, and the maximum page size is `100`. Long scan
+job and history file error messages are truncated in list responses. History file parse status is
+modeled explicitly as `PENDING`, `PROCESSING`, `READY`, or `FAILED` at the shared/API boundary while
+Prisma stores the database enum as lowercase values.
 
 ## Development
 

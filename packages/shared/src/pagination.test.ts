@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { PAGINATION_DEFAULTS, paginationQuerySchema } from "./index"
+import { PAGINATION_DEFAULTS, paginationQuerySchema, paginationQueryStringSchema } from "./index"
 
 describe("paginationQuerySchema", () => {
   it("uses pagination defaults when page and pageSize are omitted", () => {
@@ -32,5 +32,22 @@ describe("paginationQuerySchema", () => {
 
     // Then
     expect(results.every((result) => !result.success)).toBe(true)
+  })
+
+  it("parses query string pagination values at the HTTP boundary", () => {
+    // Given
+    const payload = {
+      page: "2",
+      pageSize: "5",
+    }
+
+    // When
+    const result = paginationQueryStringSchema.parse(payload)
+
+    // Then
+    expect(result).toEqual({
+      page: 2,
+      pageSize: 5,
+    })
   })
 })
