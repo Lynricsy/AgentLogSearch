@@ -208,7 +208,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Playwright: open `http://localhost:3000/search`, assert shell/nav/search heading visible at desktop viewport; screenshot `.omo/evidence/task-3-web-shell.png`.
   Commit: Y | `feat(web): 🖥️ scaffold app shell and UI foundation` | `apps/web`
 
-- [ ] T4. 搭建前端 API client、状态组件和基础页面占位
+- [x] T4. 搭建前端 API client、状态组件和基础页面占位
   What to do / Must NOT do:
   - 在 `apps/web/lib/api.ts` 使用 `NEXT_PUBLIC_API_BASE_URL`，默认 `http://localhost:3001/api`。
   - 建立 `StatusBadge`、loading/empty/error state、form validation helper。

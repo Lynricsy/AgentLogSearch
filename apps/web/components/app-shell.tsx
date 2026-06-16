@@ -12,8 +12,8 @@ type NavItem = {
 
 const navItems = [
   { href: "/search", label: "Search", status: "ready", Icon: Search },
-  { href: "/sources", label: "Sources", status: "future", Icon: Database },
-  { href: "/scan-jobs", label: "Scan Jobs", status: "future", Icon: History },
+  { href: "/sources", label: "Sources", status: "ready", Icon: Database },
+  { href: "/scan-jobs", label: "Scan Jobs", status: "ready", Icon: History },
   { href: "/settings", label: "Settings", status: "future", Icon: Settings },
 ] as const satisfies readonly NavItem[]
 
@@ -64,7 +64,6 @@ function ShellNavLink({ item }: { readonly item: NavItem }) {
 
   return (
     <Link
-      aria-current="page"
       className="flex min-w-max items-center gap-2 rounded-md border border-[var(--app-border)] bg-[var(--app-accent-soft)] px-3 py-2 text-sm font-medium text-[var(--app-accent)]"
       href={item.href}
     >
