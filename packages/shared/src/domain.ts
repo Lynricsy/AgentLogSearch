@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { embeddingStatusSchema, scanJobStatusSchema } from "./constants"
+import { embeddingStatusSchema, scanJobStatusSchema } from "./constants.js"
 
 export const agentRoleSchema = z.enum(["system", "user", "assistant", "tool", "unknown"])
 

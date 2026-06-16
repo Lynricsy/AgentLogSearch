@@ -267,7 +267,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - SQL: run migration and index checks; save to `.omo/evidence/task-6-db.sql.txt`.
   Commit: Y | `feat(db): 🗄️ add pgvector schema and migrations` | `apps/api/prisma`, `apps/api/src/database`, compose
 
-- [ ] T7. 实现 sources CRUD、source preset API 和路径策略
+- [x] T7. 实现 sources CRUD、source preset API 和路径策略
   What to do / Must NOT do:
   - 实现 `SourcesModule`、controller/service/dto。
   - CRUD endpoints: `GET/POST/PATCH/DELETE /api/sources`。

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "pnpm --filter @agent-log-search/shared build && tsc -p tsconfig.build.json",
     "dev": "nest start --watch --tsc -p tsconfig.build.json",
     "start": "node --enable-source-maps dist/main.js",
     "start:dev": "nest start --watch --tsc -p tsconfig.build.json",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { createSourceRequestSchema, SOURCE_PRESET_DEFAULTS } from "./index"
+import { createSourceRequestSchema, SOURCE_PRESET_DEFAULTS, SOURCE_PRESET_METADATA } from "./index"
 
 describe("createSourceRequestSchema", () => {
   it("parses a valid source payload when preset defaults are explicit", () => {
@@ -80,5 +80,25 @@ describe("createSourceRequestSchema", () => {
 
     // Then
     expect(results.every((result) => !result.success)).toBe(true)
+  })
+
+  it("exposes first-class preset metadata for agent CLIs and generic imports", () => {
+    // Given / When
+    const metadata = SOURCE_PRESET_METADATA.map((preset) => ({
+      id: preset.id,
+      parserType: preset.parserType,
+      readerType: preset.readerType,
+    }))
+
+    // Then
+    expect(metadata).toEqual([
+      { id: "codex", parserType: "codex-jsonl", readerType: "file-glob" },
+      { id: "claude-code", parserType: "claude-jsonl", readerType: "file-glob" },
+      { id: "pi-agent", parserType: "pi-jsonl", readerType: "file-glob" },
+      { id: "opencode", parserType: "opencode-sqlite", readerType: "sqlite" },
+      { id: "generic-jsonl", parserType: "generic-jsonl", readerType: "file-glob" },
+      { id: "generic-json", parserType: "generic-json", readerType: "file-glob" },
+      { id: "generic-markdown", parserType: "generic-markdown", readerType: "file-glob" },
+    ])
   })
 })

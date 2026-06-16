@@ -77,6 +77,24 @@ pnpm --filter api test -- database.service.spec.ts
 - OpenCode: `~/.local/share/opencode/opencode.db`
 - Generic JSONL, JSON, and Markdown imports
 
+## Sources API
+
+The API now exposes source configuration endpoints under `/api/sources`:
+
+- `GET /api/sources`
+- `GET /api/sources/presets`
+- `POST /api/sources`
+- `PATCH /api/sources/:id`
+- `DELETE /api/sources/:id`
+
+Source payloads use shared hyphenated values such as `claude-code`, `codex-jsonl`, and
+`file-glob`; the API maps them explicitly to Prisma underscore enum values such as
+`claude_code`, `codex_jsonl`, and `file_glob`. `rootPath` accepts absolute paths and `~/...`,
+is normalized before storage, and must point to an existing directory. Symlink roots are rejected
+unless the request explicitly sets `followSymlinks: true`. Scan guard fields
+`maxFileSizeBytes`, `maxFilesPerScan`, and `followSymlinks` are validated at the API boundary;
+the scanner persistence model lands in the later scan implementation.
+
 ## Development
 
 Install dependencies:
