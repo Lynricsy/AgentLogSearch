@@ -224,7 +224,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Playwright: navigate all planned routes and assert no runtime error overlay; save `.omo/evidence/task-4-web-routes.txt`.
   Commit: Y | `feat(web): 🧭 add API client and route skeletons` | `apps/web`
 
-- [ ] T5. 搭建 NestJS API 基础、配置、健康检查和测试基座
+- [x] T5. 搭建 NestJS API 基础、配置、健康检查和测试基座
   What to do / Must NOT do:
   - 创建 `apps/api` NestJS 项目结构：`main.ts`、`app.module.ts`、config、global validation pipe、global prefix `/api`。
   - 建立 `GET /api/health`、统一错误响应、Jest/Supertest e2e 基座。

@@ -4,13 +4,33 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "nest start --watch --tsc -p tsconfig.build.json",
+    "start": "node --enable-source-maps dist/main.js",
+    "start:dev": "nest start --watch --tsc -p tsconfig.build.json",
     "lint": "biome check .",
-    "test": "vitest run --passWithNoTests",
+    "test": "jest --config jest.config.cjs --passWithNoTests",
+    "test:e2e": "jest --config test/jest-e2e.config.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@agent-log-search/shared": "workspace:*"
+    "@agent-log-search/shared": "workspace:*",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.27",
+    "@nestjs/platform-express": "^11.1.27",
+    "@nestjs/schedule": "^6.1.3",
+    "@nestjs/cli": "^11.0.14",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@nestjs/testing": "^11.1.27",
+    "@types/jest": "^30.0.0",
+    "@types/node": "25.9.3",
+    "@types/supertest": "^7.2.0",
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.11"
+  }
 }
