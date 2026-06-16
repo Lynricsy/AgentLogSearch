@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "active_work_id": "clisearch-system-plan-20260616T085936Z",
+  "works": {
+    "clisearch-system-plan-20260616T085936Z": {
+      "work_id": "clisearch-system-plan-20260616T085936Z",
+      "active_plan": ".omo/plans/clisearch-system-plan.md",
+      "plan_name": "clisearch-system-plan",
+      "session_ids": ["codex:019ecf58-af00-7f52-95fe-e857c9eae78e"],
+      "status": "active",
+      "worktree_path": null
+    }
+  }
+}

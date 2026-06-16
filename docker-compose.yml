@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: agent-log-search-postgres
+    environment:
+      POSTGRES_DB: agent_log_search
+      POSTGRES_USER: agent_log_search
+      POSTGRES_PASSWORD: agent_log_search
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_log_search -d agent_log_search"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
