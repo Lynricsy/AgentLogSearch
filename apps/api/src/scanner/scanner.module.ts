@@ -6,6 +6,7 @@ import { ScannerService } from "./scanner.service.js"
 import { ScannerFileRunner } from "./scanner-file-runner.js"
 import { ScannerImporter } from "./scanner-importer.js"
 import { ScannerJobStore } from "./scanner-job-store.js"
+import { ScannerScheduler } from "./scanner-scheduler.js"
 import { ScannerSourceStore } from "./scanner-source-store.js"
 import { SourceReaderRegistry } from "./source-reader-registry.js"
 
@@ -17,6 +18,7 @@ import { SourceReaderRegistry } from "./source-reader-registry.js"
     ScannerFileRunner,
     ScannerImporter,
     ScannerJobStore,
+    ScannerScheduler,
     ScannerService,
     ScannerSourceStore,
     {

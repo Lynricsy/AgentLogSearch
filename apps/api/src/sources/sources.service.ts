@@ -8,18 +8,14 @@ import {
 import { Injectable, NotFoundException } from "@nestjs/common"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { PrismaService } from "../database/prisma.service.js"
+import { readSourceRootPath, type SourceRecord, toAgentSource } from "../sources/sources-records.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { PathPolicyService } from "./path-policy.service.js"
 import {
   PARSER_TYPE_TO_PRISMA,
-  PRISMA_PARSER_TYPE_TO_API,
-  PRISMA_SOURCE_PRESET_TO_API,
-  PRISMA_SOURCE_READER_TYPE_TO_API,
   SOURCE_PRESET_TO_PRISMA,
   SOURCE_READER_TYPE_TO_PRISMA,
 } from "./source-mapping.js"
-
-type SourceRecord = Readonly<Record<string, unknown>>
 
 @Injectable()
 export class SourcesService {
@@ -108,33 +104,7 @@ export class SourcesService {
   }
 
   public toAgentSource(record: SourceRecord): AgentSource {
-    return {
-      id: readBigIntLike(record, "id"),
-      name: readString(record, "name"),
-      sourcePreset: mapPrismaValue(
-        PRISMA_SOURCE_PRESET_TO_API,
-        readString(record, "sourcePreset"),
-        "sourcePreset",
-      ),
-      parserType: mapPrismaValue(
-        PRISMA_PARSER_TYPE_TO_API,
-        readString(record, "parserType"),
-        "parserType",
-      ),
-      readerType: mapPrismaValue(
-        PRISMA_SOURCE_READER_TYPE_TO_API,
-        readString(record, "readerType"),
-        "readerType",
-      ),
-      rootPath: readString(record, "rootPath"),
-      fileGlob: readString(record, "fileGlob"),
-      resumeTemplate: readString(record, "resumeTemplate"),
-      enabled: readBoolean(record, "enabled"),
-      scanIntervalSeconds: readNumber(record, "scanIntervalSeconds"),
-      lastScanAt: readNullableDate(record, "lastScanAt"),
-      createdAt: readDate(record, "createdAt"),
-      updatedAt: readDate(record, "updatedAt"),
-    }
+    return toAgentSource(record)
   }
 
   private async findExisting(id: bigint): Promise<SourceRecord> {
@@ -162,7 +132,7 @@ export class SourcesService {
       return undefined
     }
 
-    const currentRootPath = readString(existing, "rootPath")
+    const currentRootPath = readSourceRootPath(existing)
     const normalized = await this.pathPolicy.normalizeRoot(
       input.followSymlinks === undefined
         ? { rootPath: input.rootPath ?? currentRootPath }
@@ -183,87 +153,4 @@ function parseSourceId(id: string): bigint {
   }
 
   return BigInt(id)
-}
-
-function readBigIntLike(record: SourceRecord, field: string): string {
-  const value = record[field]
-  if (typeof value === "bigint") {
-    return value.toString()
-  }
-  if (typeof value === "number" && Number.isInteger(value)) {
-    return value.toString()
-  }
-  if (typeof value === "string" && value.length > 0) {
-    return value
-  }
-  throw new InvalidSourceRecordError(field)
-}
-
-function readString(record: SourceRecord, field: string): string {
-  const value = record[field]
-  if (typeof value === "string") {
-    return value
-  }
-  throw new InvalidSourceRecordError(field)
-}
-
-function readBoolean(record: SourceRecord, field: string): boolean {
-  const value = record[field]
-  if (typeof value === "boolean") {
-    return value
-  }
-  throw new InvalidSourceRecordError(field)
-}
-
-function readNumber(record: SourceRecord, field: string): number {
-  const value = record[field]
-  if (typeof value === "number") {
-    return value
-  }
-  throw new InvalidSourceRecordError(field)
-}
-
-function readDate(record: SourceRecord, field: string): string {
-  const value = record[field]
-  if (value instanceof Date) {
-    return value.toISOString()
-  }
-  if (typeof value === "string") {
-    return value
-  }
-  throw new InvalidSourceRecordError(field)
-}
-
-function readNullableDate(record: SourceRecord, field: string): string | null {
-  const value = record[field]
-  if (value === null) {
-    return null
-  }
-  if (value instanceof Date) {
-    return value.toISOString()
-  }
-  if (typeof value === "string") {
-    return value
-  }
-  throw new InvalidSourceRecordError(field)
-}
-
-function mapPrismaValue<T extends string>(
-  mapping: Readonly<Record<string, T>>,
-  value: string,
-  field: string,
-): T {
-  const mapped = mapping[value]
-  if (mapped === undefined) {
-    throw new InvalidSourceRecordError(field)
-  }
-  return mapped
-}
-
-class InvalidSourceRecordError extends Error {
-  public readonly name = "InvalidSourceRecordError"
-
-  public constructor(public readonly field: string) {
-    super(`Invalid source record field: ${field}`)
-  }
 }

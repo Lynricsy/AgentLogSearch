@@ -12,14 +12,24 @@ import type {
   HistoryUpsertArgs,
   ScanJobUpdateArgs,
   SessionUpsertArgs,
+  SourceUpdateArgs,
 } from "./scanner-test-types.js"
 
 export class FakePrisma {
   public readonly agentSource = {
-    findMany: async (): Promise<readonly FakeSource[]> => this.sources,
+    findMany: async ({ where }: { readonly where?: Readonly<Record<string, unknown>> } = {}) =>
+      this.findSources(where),
     findUnique: async ({ where }: { readonly where: { readonly id: bigint } }) =>
       this.sources.find((source) => source.id === where.id) ?? null,
-    update: async (): Promise<void> => undefined,
+    update: async ({ data, where }: SourceUpdateArgs) => {
+      const previous = this.sources.find((source) => source.id === where.id)
+      if (previous === undefined) {
+        return null
+      }
+      const record = { ...previous, ...data }
+      this.sources = this.sources.map((source) => (source.id === where.id ? record : source))
+      return record
+    },
   }
 
   public readonly historyFile = {
@@ -121,6 +131,8 @@ export class FakePrisma {
       fileGlob: input.fileGlob ?? "*.jsonl",
       resumeTemplate: "cd {quoted cwd}",
       enabled: true,
+      scanIntervalSeconds: 300,
+      lastScanAt: null,
       ...input,
     }
     this.sources = [...this.sources, source]
@@ -163,6 +175,10 @@ export class FakePrisma {
     return value
   }
 
+  public scanJobsFor(sourceId: bigint): readonly FakeScanJob[] {
+    return this.scanJobs.filter((job) => job.sourceId === sourceId)
+  }
+
   private nextId(): bigint {
     const value = this.id
     this.id += 1n
@@ -182,4 +198,46 @@ export class FakePrisma {
     this.messages = [...snapshot.messages]
     this.sessions = [...snapshot.sessions]
   }
+
+  private findSources(where: Readonly<Record<string, unknown>> | undefined): readonly FakeSource[] {
+    if (where === undefined) {
+      return this.sources
+    }
+    return this.sources.filter((source) => {
+      const { enabled, OR } = where
+      if (enabled === true && !source.enabled) {
+        return false
+      }
+      if (OR === undefined) {
+        return true
+      }
+      return matchesDueWhere(source, OR)
+    })
+  }
+}
+
+function matchesDueWhere(source: FakeSource, value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return true
+  }
+  return value.some((condition) => matchesDueCondition(source, condition))
+}
+
+function matchesDueCondition(source: FakeSource, condition: unknown): boolean {
+  if (!isRecord(condition)) {
+    return false
+  }
+  const { lastScanAt } = condition
+  if (lastScanAt === null) {
+    return source.lastScanAt === null
+  }
+  if (!isRecord(lastScanAt)) {
+    return false
+  }
+  const { lte } = lastScanAt
+  return source.lastScanAt !== null && lte instanceof Date && source.lastScanAt <= lte
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null
 }

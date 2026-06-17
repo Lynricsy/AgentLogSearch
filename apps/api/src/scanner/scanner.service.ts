@@ -41,6 +41,15 @@ export class ScannerService {
     return { records }
   }
 
+  public async runDue(now = new Date()): Promise<ScanRunResponse> {
+    const sources = await this.sources.listDue(now)
+    const records: ScanRunRecord[] = []
+    for (const source of sources) {
+      records.push(await this.runSourceConfig(source))
+    }
+    return { records }
+  }
+
   public async runSource(sourceId: bigint): Promise<ScanRunRecord> {
     const source = await this.sources.findEnabled(sourceId)
     if (source === null) {

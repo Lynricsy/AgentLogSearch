@@ -369,7 +369,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - HTTP sequence: create source -> run scan -> list scan jobs -> query DB counts; save `.omo/evidence/task-11-scan.http`.
   Commit: Y | `feat(scanner): 🔍 import history files safely` | scanner modules, tests
 
-- [ ] T12. 实现 ScannerScheduler 定时扫描
+- [x] T12. 实现 ScannerScheduler 定时扫描
   What to do / Must NOT do:
   - 使用 `@nestjs/schedule` 实现全局 interval 轮询 enabled sources，根据 `last_scan_at + scan_interval_seconds` 判断到期。
   - Scheduler 调用同一 ScannerService path，复用 lock，避免与手动扫描重复。

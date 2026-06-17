@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { PrismaService } from "../database/prisma.service.js"
-import type { SourceConfig } from "./scanner.types.js"
+import type { SourceConfig, SourceDueConfig } from "./scanner.types.js"
 import { mapParserType, mapReaderType, mapSourcePreset } from "./scanner-utils.js"
 
 type SourceRecord = {
@@ -14,6 +14,8 @@ type SourceRecord = {
   readonly fileGlob: string
   readonly resumeTemplate: string
   readonly enabled: boolean
+  readonly scanIntervalSeconds: number
+  readonly lastScanAt: Date | null
 }
 
 @Injectable()
@@ -26,6 +28,14 @@ export class ScannerSourceStore {
       orderBy: { id: "asc" },
     })
     return records.map(toSourceConfig)
+  }
+
+  public async listDue(now: Date): Promise<readonly SourceDueConfig[]> {
+    const records = await this.prisma.agentSource.findMany({
+      where: { enabled: true },
+      orderBy: { id: "asc" },
+    })
+    return records.map(toSourceDueConfig).filter((source) => isDue(source, now))
   }
 
   public async findEnabled(id: bigint): Promise<SourceConfig | null> {
@@ -47,4 +57,20 @@ function toSourceConfig(record: SourceRecord): SourceConfig {
     fileGlob: record.fileGlob,
     resumeTemplate: record.resumeTemplate,
   }
+}
+
+function toSourceDueConfig(record: SourceRecord): SourceDueConfig {
+  return {
+    ...toSourceConfig(record),
+    scanIntervalSeconds: record.scanIntervalSeconds,
+    lastScanAt: record.lastScanAt,
+  }
+}
+
+function isDue(source: SourceDueConfig, now: Date): boolean {
+  if (source.lastScanAt === null) {
+    return true
+  }
+  const nextScanAt = source.lastScanAt.getTime() + source.scanIntervalSeconds * 1000
+  return nextScanAt <= now.getTime()
 }

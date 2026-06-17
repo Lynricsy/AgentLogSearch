@@ -10,6 +10,8 @@ export type FakeSource = {
   readonly fileGlob: string
   readonly resumeTemplate: string
   readonly enabled: boolean
+  readonly scanIntervalSeconds: number
+  readonly lastScanAt: Date | null
 }
 
 export type FakeHistoryFile = {
@@ -79,10 +81,18 @@ export type SessionUpsertArgs = {
   }
 }
 
-export type FakeScanJob = Record<string, unknown> & { readonly id: bigint }
+export type FakeScanJob = Record<string, unknown> & {
+  readonly id: bigint
+  readonly sourceId?: bigint | null
+}
 
 export type ScanJobUpdateArgs = {
   readonly data: Record<string, unknown>
+  readonly where: { readonly id: bigint }
+}
+
+export type SourceUpdateArgs = {
+  readonly data: Partial<FakeSource>
   readonly where: { readonly id: bigint }
 }
 

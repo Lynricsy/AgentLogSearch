@@ -17,6 +17,11 @@ export type SourceConfig = {
   readonly resumeTemplate: string
 }
 
+export type SourceDueConfig = SourceConfig & {
+  readonly scanIntervalSeconds: number
+  readonly lastScanAt: Date | null
+}
+
 export type FileFingerprint = {
   readonly hash: string
   readonly fileSize: bigint
