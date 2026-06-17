@@ -2,35 +2,64 @@ import { resolve } from "node:path"
 import { SOURCE_PRESET_DEFAULTS } from "@agent-log-search/shared"
 import { HttpStatus, type INestApplication } from "@nestjs/common"
 import { Test } from "@nestjs/testing"
+import { Pool, type PoolClient } from "pg"
 import request from "supertest"
 import { AppModule } from "../src/app.module"
 import { configureApp } from "../src/bootstrap"
 import { PrismaService } from "../src/database/prisma.service"
 
+const E2E_DATABASE_LOCK_ID = "160160016"
+const E2E_SOURCE_PREFIXES = ["T11 ", "T12 ", "T14 ", "T15 "] as const
+
 describe("Semantic Search API", () => {
   let app: INestApplication
   let prisma: PrismaService
+  let lockPool: Pool
+  let lockClient: PoolClient | null = null
   const sourceIds: bigint[] = []
 
   beforeAll(async () => {
+    lockPool = new Pool({ connectionString: process.env.DATABASE_URL })
+    lockClient = await lockPool.connect()
+    await lockClient.query("SELECT pg_advisory_lock($1::bigint)", [E2E_DATABASE_LOCK_ID])
+
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile()
     app = moduleRef.createNestApplication()
     configureApp(app)
     await app.init()
     prisma = app.get(PrismaService)
+    await deleteE2eSources()
   })
 
   beforeEach(async () => {
-    await deleteT15SearchSources()
+    if (prisma === undefined) {
+      return
+    }
+    await deleteE2eSources()
   })
 
   afterEach(async () => {
-    await deleteT15SearchSources()
+    if (prisma === undefined) {
+      return
+    }
+    await deleteE2eSources()
     sourceIds.length = 0
   })
 
   afterAll(async () => {
-    await app.close()
+    try {
+      if (app !== undefined) {
+        await app.close()
+      }
+    } finally {
+      if (lockClient !== null) {
+        await lockClient.query("SELECT pg_advisory_unlock($1::bigint)", [E2E_DATABASE_LOCK_ID])
+        lockClient.release()
+      }
+      if (lockPool !== undefined) {
+        await lockPool.end()
+      }
+    }
   })
 
   it("returns empty records when no ready chunks are searchable", async () => {
@@ -58,7 +87,7 @@ describe("Semantic Search API", () => {
       .post(`/api/scan/run/${sourceId.toString()}`)
       .send()
     expect(scanResponse.status).toBe(201)
-    await processAllEmbeddings()
+    await processAllEmbeddings(sourceId)
 
     // When
     const searchResponse = await request(app.getHttpServer())
@@ -116,22 +145,27 @@ describe("Semantic Search API", () => {
     return sourceId
   }
 
-  async function deleteT15SearchSources(): Promise<void> {
+  async function deleteE2eSources(): Promise<void> {
     const sources = await prisma.agentSource.findMany({
       select: { id: true },
-      where: { name: { startsWith: "T15 " } },
+      where: {
+        OR: E2E_SOURCE_PREFIXES.map((prefix) => ({ name: { startsWith: prefix } })),
+      },
     })
     if (sources.length === 0) {
       return
     }
     const ids = sources.map((source) => source.id)
+    await prisma.scanJob.deleteMany({ where: { sourceId: { in: ids } } })
     await prisma.embeddingJob.deleteMany({ where: { sourceId: { in: ids } } })
     await prisma.agentSource.deleteMany({ where: { id: { in: ids } } })
   }
 
-  async function processAllEmbeddings(): Promise<void> {
+  async function processAllEmbeddings(sourceId: bigint): Promise<void> {
     for (let remaining = true; remaining; ) {
-      const response = await request(app.getHttpServer()).post("/api/embeddings/process").send()
+      const response = await request(app.getHttpServer())
+        .post("/api/embeddings/process")
+        .send({ sourceId: sourceId.toString() })
       expect(response.status).toBe(201)
       remaining = response.body.processedChunks > 0
     }

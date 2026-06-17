@@ -1,11 +1,15 @@
 import type { INestApplication } from "@nestjs/common"
 import { Test } from "@nestjs/testing"
 import { EmbeddingStatus } from "@prisma/client"
+import { Pool, type PoolClient } from "pg"
 import request from "supertest"
 import { AppModule } from "../src/app.module"
 import { configureApp } from "../src/bootstrap"
 import { PgService } from "../src/database/pg.service"
 import { PrismaService } from "../src/database/prisma.service"
+
+const E2E_DATABASE_LOCK_ID = "160160016"
+const E2E_SOURCE_PREFIXES = ["T11 ", "T12 ", "T14 ", "T15 "] as const
 
 type SeededSource = {
   readonly sourceId: bigint
@@ -24,25 +28,48 @@ describe("Embeddings API", () => {
   let app: INestApplication
   let pg: PgService
   let prisma: PrismaService
+  let lockPool: Pool
+  let lockClient: PoolClient | null = null
   const sourceIds: bigint[] = []
 
   beforeAll(async () => {
+    lockPool = new Pool({ connectionString: process.env.DATABASE_URL })
+    lockClient = await lockPool.connect()
+    await lockClient.query("SELECT pg_advisory_lock($1::bigint)", [E2E_DATABASE_LOCK_ID])
+
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile()
     app = moduleRef.createNestApplication()
     configureApp(app)
     await app.init()
     pg = app.get(PgService)
     prisma = app.get(PrismaService)
+    await deleteE2eSources()
   })
 
   afterEach(async () => {
+    if (prisma === undefined) {
+      return
+    }
     await prisma.embeddingJob.deleteMany({ where: { sourceId: { in: sourceIds } } })
     await prisma.agentSource.deleteMany({ where: { id: { in: sourceIds } } })
+    await deleteE2eSources()
     sourceIds.length = 0
   })
 
   afterAll(async () => {
-    await app.close()
+    try {
+      if (app !== undefined) {
+        await app.close()
+      }
+    } finally {
+      if (lockClient !== null) {
+        await lockClient.query("SELECT pg_advisory_unlock($1::bigint)", [E2E_DATABASE_LOCK_ID])
+        lockClient.release()
+      }
+      if (lockPool !== undefined) {
+        await lockPool.end()
+      }
+    }
   })
 
   it("processes pending chunks and rebuilds one source without changing other sources", async () => {
@@ -214,6 +241,22 @@ describe("Embeddings API", () => {
       throw new MissingChunkAssertionError(chunkId)
     }
     return row
+  }
+
+  async function deleteE2eSources(): Promise<void> {
+    const sources = await prisma.agentSource.findMany({
+      select: { id: true },
+      where: {
+        OR: E2E_SOURCE_PREFIXES.map((prefix) => ({ name: { startsWith: prefix } })),
+      },
+    })
+    if (sources.length === 0) {
+      return
+    }
+    const ids = sources.map((source) => source.id)
+    await prisma.scanJob.deleteMany({ where: { sourceId: { in: ids } } })
+    await prisma.embeddingJob.deleteMany({ where: { sourceId: { in: ids } } })
+    await prisma.agentSource.deleteMany({ where: { id: { in: ids } } })
   }
 })
 

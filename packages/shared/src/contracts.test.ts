@@ -11,6 +11,7 @@ import {
   parseStatusSchema,
   scanJobSchema,
   scanJobsResponseSchema,
+  scanRunResponseSchema,
 } from "./index"
 
 describe("shared domain contracts", () => {
@@ -147,6 +148,35 @@ describe("shared domain contracts", () => {
     // Then
     expect(parsed.records[0]?.status).toBe("failed")
     expect(parsed.pagination.totalItems).toBe(1)
+  })
+
+  it("parses manual scan run responses", () => {
+    // Given
+    const timestamp = "2026-06-16T09:00:00.000Z"
+
+    // When
+    const parsed = scanRunResponseSchema.parse({
+      records: [
+        {
+          id: "scan-1",
+          sourceId: "source-1",
+          status: "completed",
+          filesDiscovered: 1,
+          filesParsed: 1,
+          filesFailed: 0,
+          sessionsImported: 1,
+          messagesImported: 2,
+          chunksCreated: 1,
+          errorMessage: null,
+          startedAt: timestamp,
+          finishedAt: timestamp,
+        },
+      ],
+    })
+
+    // Then
+    expect(parsed.records[0]?.status).toBe("completed")
+    expect(parsed.records[0]?.sessionsImported).toBe(1)
   })
 
   it("rejects malformed embedding status and API error payloads", () => {

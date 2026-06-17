@@ -5,18 +5,24 @@ import {
   agentSessionDetailSchema,
   agentSourceSchema,
   apiErrorResponseSchema,
+  type CreateSourceRequest,
   type PaginatedResponse,
   paginatedResponseSchema,
   type ScanJob,
+  type ScanRunResponse,
   type SemanticSearchRequest,
   type SemanticSearchResponse,
+  type SourcePresetMetadata,
   scanJobSchema,
+  scanRunResponseSchema,
   semanticSearchResponseSchema,
+  sourcePresetMetadataSchema,
+  type UpdateSourceRequest,
 } from "@agent-log-search/shared"
 import ky, { isHTTPError, type Options } from "ky"
 import { z } from "zod"
 
-const DEFAULT_API_BASE_URL = "http://localhost:3001/api"
+const DEFAULT_API_BASE_URL = "/api"
 
 type ApiClientOptions = {
   readonly baseUrl?: string
@@ -26,7 +32,12 @@ type ApiClientOptions = {
 export type ApiClient = {
   readonly baseUrl: string
   readonly searchSemantic: (payload: SemanticSearchRequest) => Promise<SemanticSearchResponse>
-  readonly listSources: () => Promise<PaginatedResponse<AgentSource>>
+  readonly listSources: () => Promise<readonly AgentSource[]>
+  readonly listSourcePresets: () => Promise<readonly SourcePresetMetadata[]>
+  readonly createSource: (payload: CreateSourceRequest) => Promise<AgentSource>
+  readonly updateSource: (id: string, payload: UpdateSourceRequest) => Promise<AgentSource>
+  readonly deleteSource: (id: string) => Promise<void>
+  readonly runSourceScan: (sourceId: string) => Promise<ScanRunResponse>
   readonly listScanJobs: () => Promise<PaginatedResponse<ScanJob>>
   readonly getSession: (id: string) => Promise<AgentSessionDetail>
 }
@@ -56,7 +67,7 @@ export class ApiClientError extends Error {
 }
 
 export function getApiBaseUrl(): string {
-  const { NEXT_PUBLIC_API_BASE_URL } = process.env
+  const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   return NEXT_PUBLIC_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL
 }
 
@@ -73,7 +84,21 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     baseUrl,
     searchSemantic: (payload) =>
       requestJson(api.post("search/semantic", { json: payload }), semanticSearchResponseSchema),
-    listSources: () => requestJson(api.get("sources"), paginatedResponseSchema(agentSourceSchema)),
+    listSources: () => requestJson(api.get("sources"), z.array(agentSourceSchema)),
+    listSourcePresets: () =>
+      requestJson(api.get("sources/presets"), z.array(sourcePresetMetadataSchema)),
+    createSource: (payload) =>
+      requestJson(api.post("sources", { json: payload }), agentSourceSchema),
+    updateSource: (id, payload) =>
+      requestJson(
+        api.patch(`sources/${encodeURIComponent(id)}`, { json: payload }),
+        agentSourceSchema,
+      ),
+    deleteSource: async (id) => {
+      await api.delete(`sources/${encodeURIComponent(id)}`)
+    },
+    runSourceScan: (sourceId) =>
+      requestJson(api.post(`scan/run/${encodeURIComponent(sourceId)}`), scanRunResponseSchema),
     listScanJobs: () => requestJson(api.get("scan-jobs"), paginatedResponseSchema(scanJobSchema)),
     getSession: (id) =>
       requestJson(api.get(`sessions/${encodeURIComponent(id)}`), agentSessionDetailSchema),

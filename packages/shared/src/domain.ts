@@ -89,6 +89,25 @@ export const scanJobsResponseSchema = z.object({
   }),
 })
 
+export const scanRunRecordSchema = z.object({
+  id: z.string().min(1),
+  sourceId: z.string().min(1).nullable(),
+  status: scanJobStatusSchema,
+  filesDiscovered: z.number().int().min(0),
+  filesParsed: z.number().int().min(0),
+  filesFailed: z.number().int().min(0),
+  sessionsImported: z.number().int().min(0),
+  messagesImported: z.number().int().min(0),
+  chunksCreated: z.number().int().min(0),
+  errorMessage: z.string().nullable(),
+  startedAt: z.string().datetime().nullable(),
+  finishedAt: z.string().datetime().nullable(),
+})
+
+export const scanRunResponseSchema = z.object({
+  records: z.array(scanRunRecordSchema),
+})
+
 export type AgentRole = z.infer<typeof agentRoleSchema>
 export type HistoryFile = z.infer<typeof historyFileSchema>
 export type AgentSession = z.infer<typeof agentSessionSchema>
@@ -98,3 +117,5 @@ export type AgentChunk = z.infer<typeof agentChunkSchema>
 export type ScanJobSource = z.infer<typeof scanJobSourceSchema>
 export type ScanJob = z.infer<typeof scanJobSchema>
 export type ScanJobsResponse = z.infer<typeof scanJobsResponseSchema>
+export type ScanRunRecord = z.infer<typeof scanRunRecordSchema>
+export type ScanRunResponse = z.infer<typeof scanRunResponseSchema>

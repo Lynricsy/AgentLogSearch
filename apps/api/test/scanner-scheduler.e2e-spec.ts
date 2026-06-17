@@ -4,10 +4,14 @@ import { join } from "node:path"
 import { SOURCE_PRESET_DEFAULTS } from "@agent-log-search/shared"
 import type { INestApplication } from "@nestjs/common"
 import { Test } from "@nestjs/testing"
+import { Pool, type PoolClient } from "pg"
 import request from "supertest"
 import { AppModule } from "../src/app.module"
 import { configureApp } from "../src/bootstrap"
 import { PrismaService } from "../src/database/prisma.service"
+
+const E2E_DATABASE_LOCK_ID = "160160016"
+const E2E_SOURCE_PREFIXES = ["T11 ", "T12 ", "T14 ", "T15 "] as const
 
 type SchedulerJob = {
   readonly sourceId: bigint | null
@@ -17,6 +21,8 @@ type SchedulerJob = {
 describe("ScannerScheduler", () => {
   let app: INestApplication
   let prisma: PrismaService
+  let lockPool: Pool
+  let lockClient: PoolClient | null = null
   let sourceId: bigint | null = null
   let rootPath: string | null = null
   const previousEnabled = readEnv("SCAN_SCHEDULER_ENABLED")
@@ -26,24 +32,48 @@ describe("ScannerScheduler", () => {
     // Given
     setEnv("SCAN_SCHEDULER_ENABLED", "true")
     setEnv("SCAN_INTERVAL_SECONDS", "1")
+    lockPool = new Pool({ connectionString: process.env.DATABASE_URL })
+    lockClient = await lockPool.connect()
+    await lockClient.query("SELECT pg_advisory_lock($1::bigint)", [E2E_DATABASE_LOCK_ID])
+
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile()
     app = moduleRef.createNestApplication()
     configureApp(app)
     await app.init()
     prisma = app.get(PrismaService)
+    await deleteE2eSources()
   })
 
   afterEach(async () => {
+    if (prisma === undefined) {
+      return
+    }
     await cleanupCreatedSource()
+    await deleteE2eSources()
     await cleanupRootPath()
   })
 
   afterAll(async () => {
-    await cleanupCreatedSource()
-    await cleanupRootPath()
-    await app.close()
-    restoreEnv("SCAN_SCHEDULER_ENABLED", previousEnabled)
-    restoreEnv("SCAN_INTERVAL_SECONDS", previousInterval)
+    try {
+      if (prisma !== undefined) {
+        await cleanupCreatedSource()
+        await deleteE2eSources()
+      }
+      await cleanupRootPath()
+      if (app !== undefined) {
+        await app.close()
+      }
+    } finally {
+      if (lockClient !== null) {
+        await lockClient.query("SELECT pg_advisory_unlock($1::bigint)", [E2E_DATABASE_LOCK_ID])
+        lockClient.release()
+      }
+      if (lockPool !== undefined) {
+        await lockPool.end()
+      }
+      restoreEnv("SCAN_SCHEDULER_ENABLED", previousEnabled)
+      restoreEnv("SCAN_INTERVAL_SECONDS", previousInterval)
+    }
   })
 
   it("creates a scan job for a due source without a manual scan request", async () => {
@@ -96,6 +126,22 @@ describe("ScannerScheduler", () => {
     }
     await rm(rootPath, { force: true, recursive: true })
     rootPath = null
+  }
+
+  async function deleteE2eSources(): Promise<void> {
+    const sources = await prisma.agentSource.findMany({
+      select: { id: true },
+      where: {
+        OR: E2E_SOURCE_PREFIXES.map((prefix) => ({ name: { startsWith: prefix } })),
+      },
+    })
+    if (sources.length === 0) {
+      return
+    }
+    const ids = sources.map((source) => source.id)
+    await prisma.scanJob.deleteMany({ where: { sourceId: { in: ids } } })
+    await prisma.embeddingJob.deleteMany({ where: { sourceId: { in: ids } } })
+    await prisma.agentSource.deleteMany({ where: { id: { in: ids } } })
   }
 })
 

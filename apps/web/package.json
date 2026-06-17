@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev --hostname 127.0.0.1",
     "lint": "biome check app components next.config.ts postcss.config.mjs tailwind.config.mjs vitest.config.ts package.json tsconfig.json",
+    "start": "next start --hostname 127.0.0.1",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },

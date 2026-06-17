@@ -448,7 +448,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - HTTP: full curl sequence create source -> scan -> process -> search -> session detail; save `.omo/evidence/task-15-search.http`.
   Commit: Y | `feat(search): 🔎 query pgvector sessions semantically` | search/sessions modules, tests
 
-- [ ] T16. 实现 `/sources` 前端：preset、CRUD、手动扫描
+- [x] T16. 实现 `/sources` 前端：preset、CRUD、手动扫描
   What to do / Must NOT do:
   - 实现 sources table、create/edit/delete form、preset select。
   - Selecting Codex/Claude/Pi/OpenCode fills rootPath/fileGlob/resumeTemplate/parserType/sourcePreset/readerType.

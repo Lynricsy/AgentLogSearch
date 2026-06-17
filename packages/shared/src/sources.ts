@@ -76,37 +76,41 @@ export const SOURCE_PRESET_DEFAULTS = {
   }
 >
 
-export const createSourceRequestSchema = z.object({
+const sourceRequestFieldSchemas = {
   name: z.string().min(1).max(100),
   sourcePreset: sourcePresetSchema,
   parserType: parserTypeSchema,
   readerType: sourceReaderTypeSchema,
   rootPath: rootPathSchema,
-  fileGlob: z.string().min(1).max(200).default("**/*"),
+  fileGlob: z.string().min(1).max(200),
   resumeTemplate: z.string().min(1),
-  enabled: z.boolean().default(true),
-  scanIntervalSeconds: z
-    .number()
-    .int()
-    .min(60)
-    .max(86_400)
-    .default(SOURCE_SCAN_DEFAULTS.scanIntervalSeconds),
-  maxFileSizeBytes: z
-    .number()
-    .int()
-    .min(1)
-    .max(104_857_600)
-    .default(SOURCE_SCAN_DEFAULTS.maxFileSizeBytes),
-  maxFilesPerScan: z
-    .number()
-    .int()
-    .min(1)
-    .max(100_000)
-    .default(SOURCE_SCAN_DEFAULTS.maxFilesPerScan),
-  followSymlinks: z.boolean().default(SOURCE_SCAN_DEFAULTS.followSymlinks),
+  enabled: z.boolean(),
+  scanIntervalSeconds: z.number().int().min(60).max(86_400),
+  maxFileSizeBytes: z.number().int().min(1).max(104_857_600),
+  maxFilesPerScan: z.number().int().min(1).max(100_000),
+  followSymlinks: z.boolean(),
+} as const
+
+export const createSourceRequestSchema = z.object({
+  ...sourceRequestFieldSchemas,
+  fileGlob: sourceRequestFieldSchemas.fileGlob.default("**/*"),
+  enabled: sourceRequestFieldSchemas.enabled.default(true),
+  scanIntervalSeconds: sourceRequestFieldSchemas.scanIntervalSeconds.default(
+    SOURCE_SCAN_DEFAULTS.scanIntervalSeconds,
+  ),
+  maxFileSizeBytes: sourceRequestFieldSchemas.maxFileSizeBytes.default(
+    SOURCE_SCAN_DEFAULTS.maxFileSizeBytes,
+  ),
+  maxFilesPerScan: sourceRequestFieldSchemas.maxFilesPerScan.default(
+    SOURCE_SCAN_DEFAULTS.maxFilesPerScan,
+  ),
+  followSymlinks: sourceRequestFieldSchemas.followSymlinks.default(
+    SOURCE_SCAN_DEFAULTS.followSymlinks,
+  ),
 })
 
-export const updateSourceRequestSchema = createSourceRequestSchema
+export const updateSourceRequestSchema = z
+  .object(sourceRequestFieldSchemas)
   .partial()
   .refine((value) => Object.keys(value).length > 0, "at least one source field must be provided")
 

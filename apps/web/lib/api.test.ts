@@ -4,11 +4,27 @@ import { describe, expect, it } from "vitest"
 
 import { ApiClientError, createApiClient } from "./api"
 
+const sourcePayload = {
+  createdAt: "2026-06-16T09:00:00.000Z",
+  enabled: true,
+  fileGlob: "**/*.jsonl",
+  id: "12",
+  lastScanAt: null,
+  name: "Demo source",
+  parserType: "generic-jsonl",
+  readerType: "file-glob",
+  resumeTemplate: "cd {quoted cwd}",
+  rootPath: "/tmp/demo-agent",
+  scanIntervalSeconds: 300,
+  sourcePreset: "generic",
+  updatedAt: "2026-06-16T09:00:00.000Z",
+} as const
+
 describe("createApiClient", () => {
   it("uses the default API base URL when no override is provided", () => {
     const client = createApiClient({ fetcher: async () => new Response("{}") })
 
-    expect(client.baseUrl).toBe("http://localhost:3001/api")
+    expect(client.baseUrl).toBe("/api")
   })
 
   it("uses the configured API base URL when an override is provided", () => {
@@ -135,5 +151,119 @@ describe("createApiClient", () => {
       name: ApiClientError.name,
       status: 0,
     })
+  })
+
+  it("parses source list array responses", async () => {
+    const client = createApiClient({
+      baseUrl: "http://api.test/api",
+      fetcher: async () =>
+        new Response(JSON.stringify([sourcePayload]), {
+          headers: { "content-type": "application/json" },
+        }),
+    })
+
+    const result = await client.listSources()
+
+    expect(result[0]?.id).toBe("12")
+    expect(result[0]?.name).toBe("Demo source")
+  })
+
+  it("uses source CRUD and scan endpoints with expected path, method, and JSON", async () => {
+    const calls: { readonly method: string; readonly path: string; readonly json: unknown }[] = []
+    const client = createApiClient({
+      baseUrl: "http://api.test/api",
+      fetcher: async (input, init) => {
+        const request = input instanceof Request ? input : new Request(input, init)
+        const url = new URL(request.url, "http://api.test")
+        const text = await request.clone().text()
+        const json = text.length > 0 ? JSON.parse(text) : null
+        calls.push({ json, method: request.method, path: url.pathname })
+
+        if (url.pathname === "/api/sources/presets") {
+          return new Response(
+            JSON.stringify([
+              {
+                fileGlob: "**/*.jsonl",
+                id: "generic-jsonl",
+                label: "Generic JSONL",
+                parserType: "generic-jsonl",
+                readerType: "file-glob",
+                resumeTemplate: "cd {quoted cwd}",
+                rootPath: "~/agent-log-search/history",
+                sourcePreset: "generic",
+              },
+            ]),
+            { headers: { "content-type": "application/json" } },
+          )
+        }
+
+        if (url.pathname === "/api/sources/12" && request.method === "DELETE") {
+          return new Response(null, { status: 204 })
+        }
+
+        if (url.pathname === "/api/scan/run/12") {
+          return new Response(
+            JSON.stringify({
+              records: [
+                {
+                  chunksCreated: 1,
+                  errorMessage: null,
+                  filesDiscovered: 1,
+                  filesFailed: 0,
+                  filesParsed: 1,
+                  finishedAt: "2026-06-16T09:00:01.000Z",
+                  id: "77",
+                  messagesImported: 2,
+                  sessionsImported: 1,
+                  sourceId: "12",
+                  startedAt: "2026-06-16T09:00:00.000Z",
+                  status: "completed",
+                },
+              ],
+            }),
+            { headers: { "content-type": "application/json" } },
+          )
+        }
+
+        return new Response(JSON.stringify(sourcePayload), {
+          headers: { "content-type": "application/json" },
+        })
+      },
+    })
+
+    await client.listSourcePresets()
+    await client.createSource({
+      enabled: true,
+      fileGlob: "**/*.jsonl",
+      followSymlinks: false,
+      maxFileSizeBytes: 5_242_880,
+      maxFilesPerScan: 1_000,
+      name: "Demo source",
+      parserType: "generic-jsonl",
+      readerType: "file-glob",
+      resumeTemplate: "cd {quoted cwd}",
+      rootPath: "/tmp/demo-agent",
+      scanIntervalSeconds: 300,
+      sourcePreset: "generic",
+    })
+    await client.updateSource("12", { enabled: false, name: "Disabled source" })
+    await client.deleteSource("12")
+    await client.runSourceScan("12")
+
+    expect(calls).toEqual([
+      { json: null, method: "GET", path: "/api/sources/presets" },
+      {
+        json: expect.objectContaining({ name: "Demo source", rootPath: "/tmp/demo-agent" }),
+        method: "POST",
+        path: "/api/sources",
+      },
+      {
+        json: { enabled: false, name: "Disabled source" },
+        method: "PATCH",
+        path: "/api/sources/12",
+      },
+      { json: null, method: "DELETE", path: "/api/sources/12" },
+      { json: null, method: "POST", path: "/api/scan/run/12" },
+    ])
   })
 })

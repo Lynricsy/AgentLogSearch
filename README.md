@@ -6,12 +6,13 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T15 foundation, scanner/import, scheduler, chunker, mock
-embedding, semantic search, and session detail API work:
+The project has completed the T1-T16 foundation, scanner/import, scheduler, chunker, mock
+embedding, semantic search, session detail API, and `/sources` source management UI work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
-- `apps/web` Next.js shell with API client wiring and initial routes.
+- `apps/web` Next.js shell with API client wiring, search/session routes, and `/sources` source
+  CRUD plus manual scan controls.
 - `apps/api` NestJS service with `/api/health`, semantic search, and session detail routes.
 - PostgreSQL, Prisma, and pgvector schema/migration/service foundation for sources, history files,
   sessions, messages, chunks, scan jobs, and embedding jobs.
@@ -34,6 +35,8 @@ embedding, semantic search, and session detail API work:
   matches to session-level results, and returns matched chunk snippets.
 - Session detail API that returns session metadata, resume command, and complete messages ordered by
   sequence.
+- Sources UI for creating/editing/deleting enabled local sources from first-class presets, toggling
+  sources, and running source-scoped manual scans.
 
 Supported parser types:
 
@@ -45,7 +48,8 @@ Supported parser types:
 - `generic-json`
 - `generic-markdown`
 
-Real OpenAI/Ollama/http embedding providers and final wired search UI workflows are still pending.
+Real OpenAI/Ollama/http embedding providers and final wired search result workflows are still
+pending.
 
 ## Workspace
 
@@ -104,7 +108,7 @@ Run the database service test:
 pnpm --filter api test -- database.service.spec.ts
 ```
 
-## First-Class Sources Planned
+## First-Class Sources
 
 - Codex CLI: `~/.codex/sessions/**/*.jsonl`
 - Claude Code: `~/.claude/projects/**/*.jsonl`
@@ -376,7 +380,8 @@ Start the API:
 pnpm --filter api dev
 ```
 
-The API listens on `API_PORT` from `.env.example` and defaults to `3001`. Health check:
+The API listens on `API_HOST`/`API_PORT` from `.env.example` and defaults to
+`127.0.0.1:3001`. Health check:
 
 ```bash
 curl http://localhost:3001/api/health
@@ -388,5 +393,10 @@ Start the web app:
 pnpm --filter web dev
 ```
 
-The web app uses `NEXT_PUBLIC_API_BASE_URL` from `.env.example` and defaults to
-`http://localhost:3001/api`.
+Web 的 `dev` 和 `start` 脚本都会显式绑定 `127.0.0.1`，因此默认只监听本机回环地址。
+Web 客户端默认请求相对路径 `/api`，Next.js rewrite 会把 `/api/*` 代理到
+`API_PROXY_TARGET`，未设置时默认是 `http://localhost:3001`。在 Web 也只绑定回环地址
+的前提下，同源 `/api` rewrite 只服务本机访问，不会把本地 API 暴露到外部网络。只有
+本地开发需要浏览器直连 API 时，才设置可选的
+`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api`；直连模式需要 API CORS 允许对应
+本机 Web 源。
