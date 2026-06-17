@@ -466,7 +466,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Browser desktop: `/sources` create source, scan source, status changes; screenshot `.omo/evidence/task-16-sources.png`.
   Commit: Y | `feat(web): 🗃️ manage history sources` | web sources page/components
 
-- [ ] T17. 实现 `/search` 前端：语义搜索、过滤、结果卡片、resume 复制
+- [x] T17. 实现 `/search` 前端：语义搜索、过滤、结果卡片、resume 复制
   What to do / Must NOT do:
   - SearchBox、FilterPanel、SearchResultCard、ResumeCommandBox。
   - 支持 query、agentName、cwdKeyword、topK/sessionLimit 默认。
