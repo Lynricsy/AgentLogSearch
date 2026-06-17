@@ -303,7 +303,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - HTTP: `curl -i /api/scan-jobs?page=1&pageSize=20` returns 200 with `records` and pagination metadata; save `.omo/evidence/task-8-scan-jobs.http`.
   Commit: Y | `feat(scan-jobs): 📋 expose scan job history` | scan-jobs/history-file modules
 
-- [ ] T9. 实现 fixture 和 parser 测试基座
+- [x] T9. 实现 fixture 和 parser 测试基座
   What to do / Must NOT do:
   - 添加 fixtures：
     - `sample-data/demo-agent/session-1.jsonl`

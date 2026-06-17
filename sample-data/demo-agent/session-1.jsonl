@@ -1,0 +1,2 @@
+{"threadId":"demo-thread-synthetic-001","cwd":"/workspace/synthetic-demo","title":"Synthetic Demo JSONL Session","role":"user","content":"Index only the bundled synthetic fixtures.","createdAt":"2026-01-02T03:04:05.000Z"}
+{"threadId":"demo-thread-synthetic-001","cwd":"/workspace/synthetic-demo","title":"Synthetic Demo JSONL Session","role":"assistant","content":"The demo fixture is sanitized and contains no private history.","model":"demo-agent-synthetic","createdAt":"2026-01-02T03:04:06.000Z"}

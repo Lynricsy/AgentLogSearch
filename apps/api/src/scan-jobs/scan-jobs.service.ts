@@ -24,7 +24,7 @@ import {
 } from "./record-readers.js"
 import { PRISMA_SCAN_JOB_STATUS_TO_API } from "./scan-job-mapping.js"
 
-type ScanJobRecord = Readonly<Record<string, unknown>>
+type ScanJobRecord = Readonly<Record<string, unknown> & { readonly source: unknown }>
 
 @Injectable()
 export class ScanJobsService {
@@ -84,7 +84,7 @@ export class ScanJobsService {
 }
 
 function readScanJobSource(record: ScanJobRecord): ScanJobSource | null {
-  const value = record["source"]
+  const value = record.source
   if (value === null) {
     return null
   }

@@ -20,6 +20,7 @@ module.exports = {
     "^\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\.\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\./health\\.controller\\.js$": "<rootDir>/src/health.controller.ts",
+    "^\\./fixture-(metadata|validation-support)\\.js$": "<rootDir>/src/fixtures/fixture-$1.ts",
     "^\\./pg\\.service\\.js$": "<rootDir>/src/database/pg.service.ts",
     "^\\./prisma\\.service\\.js$": "<rootDir>/src/database/prisma.service.ts",
     "^\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",

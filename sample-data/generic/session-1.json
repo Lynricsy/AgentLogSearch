@@ -1,0 +1,28 @@
+{
+  "threadId": "generic-json-thread-synthetic-001",
+  "cwd": "/workspace/synthetic-generic",
+  "title": "Synthetic Generic JSON Session",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Parse a generic JSON transcript that does not come from a private account.",
+      "createdAt": "2026-01-02T03:06:00.000Z"
+    },
+    {
+      "role": "assistant",
+      "content": "The parser can extract threadId, cwd, title, roles, and content from JSON.",
+      "model": "generic-json-synthetic",
+      "createdAt": "2026-01-02T03:06:01.000Z"
+    },
+    {
+      "role": "tool",
+      "content": {
+        "kind": "structured-output",
+        "value": {
+          "result": "synthetic-json-fixture"
+        }
+      },
+      "createdAt": "2026-01-02T03:06:02.000Z"
+    }
+  ]
+}

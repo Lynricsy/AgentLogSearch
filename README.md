@@ -6,7 +6,7 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T8 foundation work:
+The project has completed the T1-T9 foundation work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
@@ -16,8 +16,10 @@ The project has completed the T1-T8 foundation work:
   sessions, messages, chunks, scan jobs, and embedding jobs.
 - Scan job listing API with source metadata, pagination bounds, explicit parse status mapping, and
   truncated list error messages.
+- Synthetic fixture data and validation tests for Codex CLI, Claude Code, Pi Agent, OpenCode,
+  Generic JSONL, Generic JSON, Generic Markdown, and demo-agent sessions.
 
-The scanner, parser/import pipeline, embedding worker, semantic search implementation, and final
+The parser/import pipeline, scanner, embedding worker, semantic search implementation, and final
 search UI workflows are still pending.
 
 ## Workspace
@@ -25,6 +27,7 @@ search UI workflows are still pending.
 - `apps/web`: Next.js application shell for the search UI, using the shared contracts and API client.
 - `apps/api`: NestJS API service with health checks, Prisma setup, and database service tests.
 - `packages/shared`: shared contracts, source preset definitions, and typed API shapes.
+- `sample-data`: synthetic sanitized Agent CLI history fixtures used by parser and scanner tests.
 
 ## Local Privacy Boundary
 
@@ -78,6 +81,33 @@ pnpm --filter api test -- database.service.spec.ts
 - Pi Agent: `~/.pi/agent/sessions/**/*.jsonl`
 - OpenCode: `~/.local/share/opencode/opencode.db`
 - Generic JSONL, JSON, and Markdown imports
+
+## Sample Data Fixtures
+
+Synthetic fixtures live under `sample-data/` and are safe to commit because they contain no real
+personal Agent CLI history. They cover:
+
+- `sample-data/codex/session-1.jsonl`
+- `sample-data/claude/session-1.jsonl`
+- `sample-data/pi-agent/session-1.jsonl`
+- `sample-data/opencode/opencode.db`
+- `sample-data/opencode/create-fixture.sql`
+- `sample-data/generic/session-1.jsonl`
+- `sample-data/generic/session-1.json`
+- `sample-data/generic/session-1.md`
+- `sample-data/demo-agent/session-1.jsonl`
+
+Regenerate the OpenCode SQLite fixture from its sanitized SQL source when needed:
+
+```bash
+sqlite3 sample-data/opencode/opencode.db < sample-data/opencode/create-fixture.sql
+```
+
+Validate the fixture baseline:
+
+```bash
+pnpm --filter api test -- --runTestsByPath src/fixtures/fixture-validation.spec.ts
+```
 
 ## Sources API
 
