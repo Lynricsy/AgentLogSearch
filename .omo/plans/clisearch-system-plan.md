@@ -404,7 +404,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - SQL/API: after scan, query chunk count and sample text header; save `.omo/evidence/task-13-chunks.txt`.
   Commit: Y | `feat(chunks): 🧱 build semantic message chunks` | chunks module, scanner integration
 
-- [ ] T14. 实现 mock embedding provider、worker 和 process/rebuild API
+- [x] T14. 实现 mock embedding provider、worker 和 process/rebuild API
   What to do / Must NOT do:
   - 实现 `EmbeddingProvider` interface 与 deterministic `MockEmbeddingProvider` dimension 1024。
   - 实现 embedding worker/service：batch size、PROCESSING、READY、FAILED、retry_count、error_message。

@@ -4,6 +4,8 @@ import {
   agentMessageSchema,
   agentSessionSchema,
   apiErrorResponseSchema,
+  embeddingJobRequestSchema,
+  embeddingJobSummarySchema,
   embeddingStatusSchema,
   historyFileSchema,
   parseStatusSchema,
@@ -80,6 +82,20 @@ describe("shared domain contracts", () => {
         startedAt: timestamp,
         finishedAt: timestamp,
       }),
+      embeddingRequest: embeddingJobRequestSchema.parse({ sourceId: "12" }),
+      embeddingJob: embeddingJobSummarySchema.parse({
+        id: "1",
+        sourceId: "12",
+        status: "completed",
+        requestedBy: "process",
+        totalChunks: 2,
+        processedChunks: 2,
+        failedChunks: 0,
+        errorMessage: null,
+        createdAt: timestamp,
+        startedAt: timestamp,
+        finishedAt: timestamp,
+      }),
     }
 
     // Then
@@ -88,6 +104,8 @@ describe("shared domain contracts", () => {
     expect(parsed.chunk.embeddingStatus).toBe("pending")
     expect(parsed.scanJob.filesParsed).toBe(1)
     expect(parsed.historyFile.parseStatus).toBe("READY")
+    expect(parsed.embeddingRequest.sourceId).toBe("12")
+    expect(parsed.embeddingJob.requestedBy).toBe("process")
   })
 
   it("parses scan job list responses with records and pagination metadata", () => {
@@ -133,15 +151,18 @@ describe("shared domain contracts", () => {
     const invalidEmbeddingStatus = "complete"
     const invalidParseStatus = "completed"
     const invalidApiError = { error: { code: "", message: "" } }
+    const invalidEmbeddingRequest = { sourceId: "abc" }
 
     // When
     const embeddingResult = embeddingStatusSchema.safeParse(invalidEmbeddingStatus)
     const parseStatusResult = parseStatusSchema.safeParse(invalidParseStatus)
     const errorResult = apiErrorResponseSchema.safeParse(invalidApiError)
+    const embeddingRequestResult = embeddingJobRequestSchema.safeParse(invalidEmbeddingRequest)
 
     // Then
     expect(embeddingResult.success).toBe(false)
     expect(parseStatusResult.success).toBe(false)
     expect(errorResult.success).toBe(false)
+    expect(embeddingRequestResult.success).toBe(false)
   })
 })

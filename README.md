@@ -6,7 +6,8 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T13 foundation, scanner/import, scheduler, and chunker work:
+The project has completed the T1-T14 foundation, scanner/import, scheduler, chunker, and mock
+embedding work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
@@ -27,6 +28,7 @@ The project has completed the T1-T13 foundation, scanner/import, scheduler, and 
 - Scheduler support for periodic due-source scans.
 - Chunker service that creates overlapping message windows with session metadata headers for later
   embedding.
+- Deterministic `mock-1024` embedding provider plus process/rebuild APIs for pending chunks.
 
 Supported parser types:
 
@@ -38,8 +40,8 @@ Supported parser types:
 - `generic-json`
 - `generic-markdown`
 
-The embedding worker, semantic search implementation, and final search UI workflows are still
-pending.
+Real OpenAI/Ollama/http embedding providers, semantic search implementation, and final search UI
+workflows are still pending.
 
 ## Workspace
 
@@ -186,8 +188,49 @@ SQLite read-only.
 Imported sessions are chunked before embedding. Empty messages are ignored, normal chunks contain up
 to eight messages, adjacent chunks keep a two-message overlap, long messages become standalone
 chunks, and each chunk text starts with `Agent:`, `CWD:`, and `Thread:` headers. New chunks are
-stored with `embeddingStatus` set to `pending`; embedding, vector search, and the final search UI
-will consume those pending chunks in later tasks.
+stored with `embeddingStatus` set to `pending`; the embeddings process API consumes those pending
+chunks with the local deterministic mock provider.
+
+## Embeddings API
+
+The API exposes local mock embedding job endpoints:
+
+- `POST /api/embeddings/process`: creates a `process` embedding job and processes a small locked
+  batch of `pending` or `failed` chunks.
+- `POST /api/embeddings/rebuild`: creates a `rebuild` embedding job and resets `ready` or `failed`
+  chunks to `pending`; accepts optional `sourceId` to scope the rebuild.
+
+Request body for either endpoint may be empty or source-scoped:
+
+```json
+{
+  "sourceId": "1"
+}
+```
+
+The response is an embedding job summary:
+
+```json
+{
+  "id": "1",
+  "sourceId": "1",
+  "status": "completed",
+  "requestedBy": "process",
+  "totalChunks": 1,
+  "processedChunks": 1,
+  "failedChunks": 0,
+  "errorMessage": null,
+  "createdAt": "2026-06-17T10:00:00.000Z",
+  "startedAt": "2026-06-17T10:00:00.000Z",
+  "finishedAt": "2026-06-17T10:00:01.000Z"
+}
+```
+
+The first implementation only includes the deterministic `mock-1024` provider. It validates the
+provider and database vector dimensions at startup, writes `vector(1024)` values through raw
+PostgreSQL via `PgService`, and uses row locks with `FOR UPDATE SKIP LOCKED` to avoid duplicate
+batch processing. Real OpenAI, Ollama, and HTTP embedding providers are intentionally left as future
+provider implementations.
 
 ## Scan Jobs API
 

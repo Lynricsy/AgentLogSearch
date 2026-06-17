@@ -1,5 +1,6 @@
 export * from "./constants.js"
 export * from "./domain.js"
+export * from "./embeddings.js"
 export * from "./errors.js"
 export * from "./pagination.js"
 export * from "./search.js"
