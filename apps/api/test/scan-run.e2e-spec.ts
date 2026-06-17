@@ -2,6 +2,7 @@ import { resolve } from "node:path"
 import { SOURCE_PRESET_DEFAULTS } from "@agent-log-search/shared"
 import type { INestApplication } from "@nestjs/common"
 import { Test } from "@nestjs/testing"
+import { EmbeddingStatus } from "@prisma/client"
 import request from "supertest"
 import { AppModule } from "../src/app.module"
 import { configureApp } from "../src/bootstrap"
@@ -58,6 +59,7 @@ describe("Scan Run API", () => {
       ]),
     })
     await expectImportedCounts(sourceIds)
+    await expectImportedChunks(sourceIds)
   })
 
   async function createSource(
@@ -87,5 +89,23 @@ describe("Scan Run API", () => {
     ])
     expect(sessions).toBeGreaterThanOrEqual(5)
     expect(messages).toBeGreaterThanOrEqual(15)
+  }
+
+  async function expectImportedChunks(ids: readonly bigint[]): Promise<void> {
+    const [chunks, pendingChunk] = await Promise.all([
+      prisma.agentChunk.count({ where: { sourceId: { in: ids } } }),
+      prisma.agentChunk.findFirst({
+        where: { sourceId: { in: ids }, embeddingStatus: EmbeddingStatus.pending },
+        orderBy: [{ sourceId: "asc" }, { chunkIndex: "asc" }],
+      }),
+    ])
+    expect(chunks).toBeGreaterThan(0)
+    expect(pendingChunk).not.toBeNull()
+    expect(pendingChunk?.embeddingStatus).toBe(EmbeddingStatus.pending)
+    expect(pendingChunk?.startMessageSeq).not.toBeNull()
+    expect(pendingChunk?.endMessageSeq).not.toBeNull()
+    expect(pendingChunk?.chunkText).toContain("Agent:")
+    expect(pendingChunk?.chunkText).toContain("CWD:")
+    expect(pendingChunk?.chunkText).toContain("Thread:")
   }
 })

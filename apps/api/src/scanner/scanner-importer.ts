@@ -3,6 +3,9 @@ import { EmbeddingStatus, type Prisma } from "@prisma/client"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { PrismaService } from "../database/prisma.service.js"
 import type { ParsedMessage, ParsedSession } from "../parsers/index.js"
+import type { ChunkDraft } from "../scanner/chunker.service.js"
+// biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
+import { ChunkerService } from "../scanner/chunker.service.js"
 import type { FileImportInput, FileImportStats, SourceConfig } from "./scanner.types.js"
 import { toNullableDate } from "./scanner-utils.js"
 
@@ -10,16 +13,20 @@ type ImportClient = Prisma.TransactionClient | PrismaService
 
 @Injectable()
 export class ScannerImporter {
-  public constructor(private readonly prisma: PrismaService) {}
+  public constructor(
+    private readonly prisma: PrismaService,
+    private readonly chunker: ChunkerService,
+  ) {}
 
   public async importFile(input: FileImportInput): Promise<FileImportStats> {
-    return this.prisma.$transaction((tx) => importFileWithClient(tx, input))
+    return this.prisma.$transaction((tx) => importFileWithClient(tx, input, this.chunker))
   }
 }
 
 async function importFileWithClient(
   tx: ImportClient,
   input: FileImportInput,
+  chunker: ChunkerService,
 ): Promise<FileImportStats> {
   const history = await tx.historyFile.upsert({
     where: {
@@ -45,7 +52,7 @@ async function importFileWithClient(
     },
   })
 
-  const stats = await importSessions(tx, input, history.id)
+  const stats = await importSessions(tx, input, history.id, chunker)
   await tx.historyFile.update({
     where: { id: history.id },
     data: { parseStatus: "ready", errorMessage: null },
@@ -57,6 +64,7 @@ async function importSessions(
   tx: ImportClient,
   input: FileImportInput,
   historyFileId: bigint,
+  chunker: ChunkerService,
 ): Promise<FileImportStats> {
   let messagesImported = 0
   let chunksCreated = 0
@@ -71,9 +79,15 @@ async function importSessions(
       create: toSessionCreate(input.source, historyFileId, session),
       update: toSessionUpdate(input.source, historyFileId, session),
     })
-    await replaceSessionRows(tx, input.source, record.id, session)
+    const sessionChunksCreated = await replaceSessionRows(
+      tx,
+      input.source,
+      record.id,
+      session,
+      chunker,
+    )
     messagesImported += session.messages.length
-    chunksCreated += session.messages.length > 0 ? 1 : 0
+    chunksCreated += sessionChunksCreated
   }
   return { sessionsImported: input.sessions.length, messagesImported, chunksCreated }
 }
@@ -83,17 +97,20 @@ async function replaceSessionRows(
   source: SourceConfig,
   sessionId: bigint,
   session: ParsedSession,
-): Promise<void> {
+  chunker: ChunkerService,
+): Promise<number> {
   await tx.agentChunk.deleteMany({ where: { sessionId } })
   await tx.agentMessage.deleteMany({ where: { sessionId } })
   await tx.agentMessage.createMany({
     data: session.messages.map((message) => toMessageCreate(sessionId, message)),
   })
-  if (session.messages.length > 0) {
-    await tx.agentChunk.create({
-      data: toChunkCreate(source, sessionId, session),
+  const chunks = chunker.chunkSession(source, session)
+  if (chunks.length > 0) {
+    await tx.agentChunk.createMany({
+      data: chunks.map((chunk) => toChunkCreate(source.id, sessionId, chunk)),
     })
   }
+  return chunks.length
 }
 
 function toSessionCreate(source: SourceConfig, historyFileId: bigint, session: ParsedSession) {
@@ -137,19 +154,17 @@ function toMessageCreate(sessionId: bigint, message: ParsedMessage) {
   }
 }
 
-function toChunkCreate(source: SourceConfig, sessionId: bigint, session: ParsedSession) {
-  const first = session.messages[0]
-  const last = session.messages[session.messages.length - 1]
+function toChunkCreate(sourceId: bigint, sessionId: bigint, chunk: ChunkDraft) {
   return {
     sessionId,
-    sourceId: source.id,
-    chunkIndex: 0,
-    startMessageSeq: first?.sequence ?? null,
-    endMessageSeq: last?.sequence ?? null,
-    agentName: source.sourcePreset,
-    externalThreadId: session.threadId,
-    cwd: session.cwd,
-    chunkText: session.messages.map((message) => message.content).join("\n\n"),
+    sourceId,
+    chunkIndex: chunk.chunkIndex,
+    startMessageSeq: chunk.startMessageSeq,
+    endMessageSeq: chunk.endMessageSeq,
+    agentName: chunk.agentName,
+    externalThreadId: chunk.externalThreadId,
+    cwd: chunk.cwd,
+    chunkText: chunk.chunkText,
     embeddingStatus: EmbeddingStatus.pending,
   }
 }

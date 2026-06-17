@@ -6,7 +6,7 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T11 foundation and scanner/import work:
+The project has completed the T1-T13 foundation, scanner/import, scheduler, and chunker work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
@@ -22,8 +22,11 @@ The project has completed the T1-T11 foundation and scanner/import work:
   `file-glob` source reading, and read-only SQLite source reading for OpenCode.
 - Scanner service and importer for manual scans, including sha256 fingerprints, unchanged-file
   skips, per-source in-process scan locks, scan job/history status updates, session/message import,
-  and placeholder chunk creation.
+  and transactionally generated pending chunks.
 - Manual scan API under `/api/scan/run` and `/api/scan/run/:sourceId`.
+- Scheduler support for periodic due-source scans.
+- Chunker service that creates overlapping message windows with session metadata headers for later
+  embedding.
 
 Supported parser types:
 
@@ -35,8 +38,8 @@ Supported parser types:
 - `generic-json`
 - `generic-markdown`
 
-The scheduler, chunker strategy work, embedding worker, semantic search implementation, and final
-search UI workflows are still pending.
+The embedding worker, semantic search implementation, and final search UI workflows are still
+pending.
 
 ## Workspace
 
@@ -141,8 +144,8 @@ Source payloads use shared hyphenated values such as `claude-code`, `codex-jsonl
 is normalized before storage, and must point to an existing directory. Symlink roots are rejected
 unless the request explicitly sets `followSymlinks: true`. Scan guard fields
 `maxFileSizeBytes`, `maxFilesPerScan`, and `followSymlinks` are validated at the API boundary.
-Manual scans persist history file fingerprints, imported sessions, messages, placeholder chunks,
-and scan job counters in PostgreSQL.
+Manual and scheduled scans persist history file fingerprints, imported sessions, messages, pending
+chunks, and scan job counters in PostgreSQL.
 
 ## Manual Scan API
 
@@ -176,9 +179,15 @@ The response is a `records` array of scan job summaries:
 
 Manual scans use the configured source reader and parser. Files whose fingerprint matches the last
 successful history record are skipped. Changed files are parsed and imported transactionally so a
-failed message/chunk import does not half-clear previously imported messages. OpenCode SQLite
+failed message/chunk import does not half-clear previously imported messages or chunks. OpenCode SQLite
 fingerprints include the database file plus optional `-wal` and `-shm` sidecars, and parsing opens
 SQLite read-only.
+
+Imported sessions are chunked before embedding. Empty messages are ignored, normal chunks contain up
+to eight messages, adjacent chunks keep a two-message overlap, long messages become standalone
+chunks, and each chunk text starts with `Agent:`, `CWD:`, and `Thread:` headers. New chunks are
+stored with `embeddingStatus` set to `pending`; embedding, vector search, and the final search UI
+will consume those pending chunks in later tasks.
 
 ## Scan Jobs API
 

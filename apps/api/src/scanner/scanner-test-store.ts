@@ -1,4 +1,5 @@
 import type {
+  FakeChunk,
   FakeHistoryCreate,
   FakeHistoryFile,
   FakeMessage,
@@ -98,10 +99,20 @@ export class FakePrisma {
   }
 
   public readonly agentChunk = {
-    deleteMany: async (): Promise<void> => undefined,
-    create: async (): Promise<void> => undefined,
+    deleteMany: async ({ where }: { readonly where: { readonly sessionId: bigint } }) => {
+      this.chunks = this.chunks.filter((chunk) => chunk.sessionId !== where.sessionId)
+    },
+    create: async ({ data }: { readonly data: FakeChunk }) => {
+      this.chunks = [...this.chunks, data]
+      return data
+    },
+    createMany: async ({ data }: { readonly data: readonly FakeChunk[] }) => {
+      this.chunks = [...this.chunks, ...data]
+      return { count: data.length }
+    },
   }
 
+  private chunks: FakeChunk[] = []
   private histories: FakeHistoryFile[] = []
   private id = 1n
   private messages: FakeMessage[] = []
@@ -161,12 +172,20 @@ export class FakePrisma {
     this.messages = [...this.messages, input]
   }
 
+  public addChunk(input: FakeChunk): void {
+    this.chunks = [...this.chunks, input]
+  }
+
   public failNextMessageCreateMany(): void {
     this.shouldFailMessageCreateMany = true
   }
 
   public messagesFor(sessionId: bigint): readonly FakeMessage[] {
     return this.messages.filter((message) => message.sessionId === sessionId)
+  }
+
+  public chunksFor(sessionId: bigint): readonly FakeChunk[] {
+    return this.chunks.filter((chunk) => chunk.sessionId === sessionId)
   }
 
   public onlyHistoryFile(): FakeHistoryFile {
@@ -187,6 +206,7 @@ export class FakePrisma {
 
   private snapshot(): FakeSnapshot {
     return {
+      chunks: this.chunks.map((value) => ({ ...value })),
       histories: this.histories.map((value) => ({ ...value })),
       messages: this.messages.map((value) => ({ ...value })),
       sessions: this.sessions.map((value) => ({ ...value })),
@@ -194,6 +214,7 @@ export class FakePrisma {
   }
 
   private restore(snapshot: FakeSnapshot): void {
+    this.chunks = [...snapshot.chunks]
     this.histories = [...snapshot.histories]
     this.messages = [...snapshot.messages]
     this.sessions = [...snapshot.sessions]

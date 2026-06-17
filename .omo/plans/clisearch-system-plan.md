@@ -387,7 +387,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Shell/API: start API with scheduler enabled and short interval, capture scan_job created by scheduler to `.omo/evidence/task-12-scheduler.txt`.
   Commit: Y | `feat(scanner): ⏱️ schedule recurring source scans` | scheduler modules, tests
 
-- [ ] T13. 实现 ChunkerService 与 chunk 写入
+- [x] T13. 实现 ChunkerService 与 chunk 写入
   What to do / Must NOT do:
   - 实现 chunker 策略：3-8 messages、500-1200 中文字目标、1-2 overlap、优先 user message、保留 Agent/CWD/Thread header。
   - Scanner 导入 message 后生成 `agent_chunk`，状态 PENDING。

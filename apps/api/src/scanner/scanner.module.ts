@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common"
 import { DatabaseModule } from "../database/database.module.js"
 import { ParserRegistry } from "../parsers/index.js"
+import { ChunkerService } from "../scanner/chunker.service.js"
 import { ScanController } from "./scan.controller.js"
 import { ScannerService } from "./scanner.service.js"
 import { ScannerFileRunner } from "./scanner-file-runner.js"
@@ -15,6 +16,7 @@ import { SourceReaderRegistry } from "./source-reader-registry.js"
   exports: [ScannerService],
   imports: [DatabaseModule],
   providers: [
+    ChunkerService,
     ScannerFileRunner,
     ScannerImporter,
     ScannerJobStore,

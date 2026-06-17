@@ -6,6 +6,7 @@ import { Test } from "@nestjs/testing"
 import { PrismaService } from "../database/prisma.service.js"
 import type { ParseResult } from "../parsers/index.js"
 import { ParseFailureError, ParserRegistry } from "../parsers/index.js"
+import { ChunkerService } from "../scanner/chunker.service.js"
 import { ScannerConflictError, ScannerService } from "./scanner.service.js"
 import { ScannerFileRunner } from "./scanner-file-runner.js"
 import { fingerprintSource } from "./scanner-fingerprint.js"
@@ -47,9 +48,33 @@ describe("ScannerService", () => {
       sourceId: source.id,
     })
     prisma.addMessage({ content: "old message", seqNo: 0, sessionId: session.id })
+    prisma.addChunk({
+      sessionId: session.id,
+      sourceId: source.id,
+      chunkIndex: 0,
+      startMessageSeq: 0,
+      endMessageSeq: 0,
+      agentName: source.sourcePreset,
+      externalThreadId: "thread-changed",
+      cwd: "/workspace",
+      chunkText: "old chunk",
+      embeddingStatus: "ready",
+    })
     const service = await createScanner(
       prisma,
-      createParserFake(makeParseResult(filePath, "thread-changed", "new message")),
+      createParserFake(
+        makeParseResult(filePath, "thread-changed", [
+          "new message 0",
+          "new message 1",
+          "new message 2",
+          "new message 3",
+          "new message 4",
+          "new message 5",
+          "new message 6",
+          "new message 7",
+          "new message 8",
+        ]),
+      ),
     )
 
     // When
@@ -58,10 +83,33 @@ describe("ScannerService", () => {
     // Then
     expect(result.filesParsed).toBe(1)
     expect(result.sessionsImported).toBe(1)
-    expect(result.messagesImported).toBe(1)
+    expect(result.messagesImported).toBe(9)
+    expect(result.chunksCreated).toBe(2)
     expect(prisma.messagesFor(session.id).map((message) => message.content)).toEqual([
-      "new message",
+      "new message 0",
+      "new message 1",
+      "new message 2",
+      "new message 3",
+      "new message 4",
+      "new message 5",
+      "new message 6",
+      "new message 7",
+      "new message 8",
     ])
+    expect(
+      prisma.chunksFor(session.id).map((chunk) => ({
+        chunkIndex: chunk.chunkIndex,
+        startMessageSeq: chunk.startMessageSeq,
+        endMessageSeq: chunk.endMessageSeq,
+        embeddingStatus: chunk.embeddingStatus,
+      })),
+    ).toEqual([
+      { chunkIndex: 0, startMessageSeq: 0, endMessageSeq: 7, embeddingStatus: "pending" },
+      { chunkIndex: 1, startMessageSeq: 6, endMessageSeq: 8, embeddingStatus: "pending" },
+    ])
+    expect(prisma.chunksFor(session.id)[0]?.chunkText).toContain("Agent: generic")
+    expect(prisma.chunksFor(session.id)[0]?.chunkText).toContain("CWD: /workspace")
+    expect(prisma.chunksFor(session.id)[0]?.chunkText).toContain("Thread: thread-changed")
   })
 
   it("marks history and scan job failed when a parser raises a typed parse failure", async () => {
@@ -103,6 +151,18 @@ describe("ScannerService", () => {
       sourceId: source.id,
     })
     prisma.addMessage({ content: "old survives", seqNo: 0, sessionId: session.id })
+    prisma.addChunk({
+      sessionId: session.id,
+      sourceId: source.id,
+      chunkIndex: 0,
+      startMessageSeq: 0,
+      endMessageSeq: 0,
+      agentName: source.sourcePreset,
+      externalThreadId: "thread-rollback",
+      cwd: "/workspace",
+      chunkText: "old chunk survives",
+      embeddingStatus: "ready",
+    })
     prisma.failNextMessageCreateMany()
     const service = await createScanner(
       prisma,
@@ -116,6 +176,9 @@ describe("ScannerService", () => {
     expect(result.status).toBe("failed")
     expect(prisma.messagesFor(session.id).map((message) => message.content)).toEqual([
       "old survives",
+    ])
+    expect(prisma.chunksFor(session.id).map((chunk) => chunk.chunkText)).toEqual([
+      "old chunk survives",
     ])
   })
 
@@ -155,6 +218,7 @@ async function createScanner(prisma: FakePrisma, parser: FakeParser): Promise<Sc
   const moduleRef = await Test.createTestingModule({
     providers: [
       ScannerFileRunner,
+      ChunkerService,
       ScannerImporter,
       ScannerJobStore,
       ScannerService,
@@ -171,7 +235,12 @@ function createPrismaFake(): FakePrisma {
   return new FakePrisma()
 }
 
-function makeParseResult(filePath: string, threadId: string, content = "message"): ParseResult {
+function makeParseResult(
+  filePath: string,
+  threadId: string,
+  contents: readonly string[] | string = "message",
+): ParseResult {
+  const messages = Array.isArray(contents) ? contents : [contents]
   return {
     sessions: [
       {
@@ -183,7 +252,13 @@ function makeParseResult(filePath: string, threadId: string, content = "message"
         model: "model",
         startedAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:01:00.000Z",
-        messages: [{ role: "user", content, model: null, sequence: 0, createdAt: null }],
+        messages: messages.map((content, sequence) => ({
+          role: "user",
+          content,
+          model: null,
+          sequence,
+          createdAt: null,
+        })),
       },
     ],
     warnings: [],

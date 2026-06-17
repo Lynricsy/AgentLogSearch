@@ -36,6 +36,19 @@ export type FakeMessage = {
   readonly content: string
 }
 
+export type FakeChunk = {
+  readonly sessionId: bigint
+  readonly sourceId: bigint
+  readonly chunkIndex: number
+  readonly startMessageSeq: number | null
+  readonly endMessageSeq: number | null
+  readonly agentName: string | null
+  readonly externalThreadId: string | null
+  readonly cwd: string | null
+  readonly chunkText: string
+  readonly embeddingStatus: "pending" | "processing" | "ready" | "failed"
+}
+
 export type FakeParser = {
   calls: number
   parse(parserType: string, source: ParserSource): Promise<ParseResult>
@@ -97,6 +110,7 @@ export type SourceUpdateArgs = {
 }
 
 export type FakeSnapshot = {
+  readonly chunks: readonly FakeChunk[]
   readonly histories: readonly FakeHistoryFile[]
   readonly messages: readonly FakeMessage[]
   readonly sessions: readonly FakeSession[]

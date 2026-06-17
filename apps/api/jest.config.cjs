@@ -30,6 +30,7 @@ module.exports = {
     "^\\./prisma\\.service\\.js$": "<rootDir>/src/database/prisma.service.ts",
     "^\\./scanner/(.*)\\.js$": "<rootDir>/src/scanner/$1.ts",
     "^\\.\\./scanner/(.*)\\.js$": "<rootDir>/src/scanner/$1.ts",
+    "^\\./chunker\\.service\\.js$": "<rootDir>/src/scanner/chunker.service.ts",
     "^\\./scan\\.controller\\.js$": "<rootDir>/src/scanner/scan.controller.ts",
     "^\\./(scanner[^/]*|source-reader-registry)\\.js$": "<rootDir>/src/scanner/$1.ts",
     "^\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
