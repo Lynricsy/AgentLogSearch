@@ -6,14 +6,15 @@ import {
   agentSourceSchema,
   apiErrorResponseSchema,
   type CreateSourceRequest,
+  PAGINATION_DEFAULTS,
   type PaginatedResponse,
-  paginatedResponseSchema,
+  paginationQuerySchema,
   type ScanJob,
   type ScanRunResponse,
   type SemanticSearchRequest,
   type SemanticSearchResponse,
   type SourcePresetMetadata,
-  scanJobSchema,
+  scanJobsResponseSchema,
   scanRunResponseSchema,
   semanticSearchResponseSchema,
   sourcePresetMetadataSchema,
@@ -29,6 +30,11 @@ type ApiClientOptions = {
   readonly fetcher?: typeof fetch
 }
 
+export type ScanJobsQuery = {
+  readonly page?: number
+  readonly pageSize?: number
+}
+
 export type ApiClient = {
   readonly baseUrl: string
   readonly searchSemantic: (payload: SemanticSearchRequest) => Promise<SemanticSearchResponse>
@@ -38,7 +44,7 @@ export type ApiClient = {
   readonly updateSource: (id: string, payload: UpdateSourceRequest) => Promise<AgentSource>
   readonly deleteSource: (id: string) => Promise<void>
   readonly runSourceScan: (sourceId: string) => Promise<ScanRunResponse>
-  readonly listScanJobs: () => Promise<PaginatedResponse<ScanJob>>
+  readonly listScanJobs: (query?: ScanJobsQuery) => Promise<PaginatedResponse<ScanJob>>
   readonly getSession: (id: string) => Promise<AgentSessionDetail>
 }
 
@@ -99,7 +105,19 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     },
     runSourceScan: (sourceId) =>
       requestJson(api.post(`scan/run/${encodeURIComponent(sourceId)}`), scanRunResponseSchema),
-    listScanJobs: () => requestJson(api.get("scan-jobs"), paginatedResponseSchema(scanJobSchema)),
+    listScanJobs: async (query) => {
+      const response = await requestJson(
+        api.get("scan-jobs", { searchParams: scanJobsSearchParams(query) }),
+        scanJobsResponseSchema,
+      )
+      return {
+        items: response.records,
+        page: response.pagination.page,
+        pageSize: response.pagination.pageSize,
+        totalItems: response.pagination.totalItems,
+        totalPages: response.pagination.totalPages,
+      }
+    },
     getSession: (id) =>
       requestJson(api.get(`sessions/${encodeURIComponent(id)}`), agentSessionDetailSchema),
   }
@@ -165,4 +183,20 @@ function readApiError(data: unknown, status: number): ApiErrorResponse {
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "")
+}
+
+function scanJobsSearchParams(query: ScanJobsQuery = {}): Record<string, string> {
+  const parsed = paginationQuerySchema.safeParse(query)
+  if (!parsed.success) {
+    throw new ApiClientError({
+      code: "invalid_pagination_query",
+      message: `Scan jobs pagination query must use integer page >= 1 and pageSize between 1 and ${PAGINATION_DEFAULTS.maxPageSize}.`,
+      status: 0,
+    })
+  }
+
+  return {
+    page: String(parsed.data.page),
+    pageSize: String(parsed.data.pageSize),
+  }
 }

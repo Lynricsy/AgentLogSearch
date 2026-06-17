@@ -484,7 +484,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Browser desktop+mobile: search, verify result, copy command, assert clipboard text equals expected shell-quoted command; screenshots `.omo/evidence/task-17-search-desktop.png` and `.omo/evidence/task-17-search-mobile.png`.
   Commit: Y | `feat(web): 🔍 build semantic search experience` | web search components/page
 
-- [ ] T18. 实现 `/scan-jobs` 前端
+- [x] T18. 实现 `/scan-jobs` 前端
   What to do / Must NOT do:
   - 展示 scan job table：status、source、startedAt、endedAt、filesSeen、filesChanged、sessionsImported、messagesImported、chunksCreated、errorMessage。
   - 支持分页、loading、empty、error state。

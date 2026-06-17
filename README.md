@@ -6,9 +6,9 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T17 foundation, scanner/import, scheduler, chunker, mock
+The project has completed the T1-T18 foundation, scanner/import, scheduler, chunker, mock
 embedding, semantic search, session detail API, `/sources` source management UI, and `/search`
-semantic search UI work:
+semantic search UI, and `/scan-jobs` scan history UI work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
@@ -41,6 +41,8 @@ semantic search UI work:
 - Search UI for submitting semantic queries, applying `agentName`/`cwdKeyword`/`topK`/`sessionLimit`
   filters, viewing session result cards with matched chunks, and copying resume commands with a
   clipboard fallback.
+- Scan jobs UI for loading paginated scan history, showing status/source/start/finish/count columns,
+  and keeping long failure text collapsed behind an explicit details action.
 
 Supported parser types:
 
@@ -52,7 +54,7 @@ Supported parser types:
 - `generic-json`
 - `generic-markdown`
 
-Real OpenAI/Ollama/http embedding providers and scan job/session detail frontend workflows are still
+Real OpenAI/Ollama/http embedding providers and the session detail frontend workflow are still
 pending.
 
 ## Workspace
