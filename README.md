@@ -6,7 +6,7 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T10 foundation work:
+The project has completed the T1-T11 foundation and scanner/import work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
@@ -20,6 +20,10 @@ The project has completed the T1-T10 foundation work:
   Generic JSONL, Generic JSON, Generic Markdown, and demo-agent sessions.
 - Parser infrastructure for the seven supported history formats, including `ParserRegistry`,
   `file-glob` source reading, and read-only SQLite source reading for OpenCode.
+- Scanner service and importer for manual scans, including sha256 fingerprints, unchanged-file
+  skips, per-source in-process scan locks, scan job/history status updates, session/message import,
+  and placeholder chunk creation.
+- Manual scan API under `/api/scan/run` and `/api/scan/run/:sourceId`.
 
 Supported parser types:
 
@@ -31,8 +35,8 @@ Supported parser types:
 - `generic-json`
 - `generic-markdown`
 
-The scanner/import DB pipeline, embedding worker, semantic search implementation, and final search
-UI workflows are still pending.
+The scheduler, chunker strategy work, embedding worker, semantic search implementation, and final
+search UI workflows are still pending.
 
 ## Workspace
 
@@ -136,8 +140,45 @@ Source payloads use shared hyphenated values such as `claude-code`, `codex-jsonl
 `claude_code`, `codex_jsonl`, and `file_glob`. `rootPath` accepts absolute paths and `~/...`,
 is normalized before storage, and must point to an existing directory. Symlink roots are rejected
 unless the request explicitly sets `followSymlinks: true`. Scan guard fields
-`maxFileSizeBytes`, `maxFilesPerScan`, and `followSymlinks` are validated at the API boundary;
-the scanner persistence model lands in the later scan implementation.
+`maxFileSizeBytes`, `maxFilesPerScan`, and `followSymlinks` are validated at the API boundary.
+Manual scans persist history file fingerprints, imported sessions, messages, placeholder chunks,
+and scan job counters in PostgreSQL.
+
+## Manual Scan API
+
+The API exposes manual scan triggers:
+
+- `POST /api/scan/run`: scan all enabled sources.
+- `POST /api/scan/run/:sourceId`: scan one enabled source.
+
+The response is a `records` array of scan job summaries:
+
+```json
+{
+  "records": [
+    {
+      "id": "1",
+      "sourceId": "1",
+      "status": "completed",
+      "filesDiscovered": 1,
+      "filesParsed": 1,
+      "filesFailed": 0,
+      "sessionsImported": 1,
+      "messagesImported": 3,
+      "chunksCreated": 1,
+      "errorMessage": null,
+      "startedAt": "2026-06-17T10:00:00.000Z",
+      "finishedAt": "2026-06-17T10:00:01.000Z"
+    }
+  ]
+}
+```
+
+Manual scans use the configured source reader and parser. Files whose fingerprint matches the last
+successful history record are skipped. Changed files are parsed and imported transactionally so a
+failed message/chunk import does not half-clear previously imported messages. OpenCode SQLite
+fingerprints include the database file plus optional `-wal` and `-shm` sidecars, and parsing opens
+SQLite read-only.
 
 ## Scan Jobs API
 

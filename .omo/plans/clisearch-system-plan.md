@@ -349,7 +349,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Shell: run parser tests and write `.omo/evidence/task-10-parser-tests.txt`.
   Commit: Y | `feat(parsers): 🧠 parse common agent histories` | parser modules, fixtures tests
 
-- [ ] T11. 实现 ScannerService、fingerprint、事务导入和手动扫描 API
+- [x] T11. 实现 ScannerService、fingerprint、事务导入和手动扫描 API
   What to do / Must NOT do:
   - 实现 `ScannerService`：按 source reader 查文件或 SQLite 数据库、sha256 fingerprint、判断新增/变更、调用 parser、事务 upsert session/message/chunk placeholder。
   - OpenCode source fingerprint 默认组合 `opencode.db`、`opencode.db-wal`、`opencode.db-shm` 的 sha256；读取时使用 read-only SQLite reader 或临时快照，不写入原 DB。

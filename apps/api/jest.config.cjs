@@ -28,6 +28,10 @@ module.exports = {
       "<rootDir>/src/parsers/$1.ts",
     "^\\./pg\\.service\\.js$": "<rootDir>/src/database/pg.service.ts",
     "^\\./prisma\\.service\\.js$": "<rootDir>/src/database/prisma.service.ts",
+    "^\\./scanner/(.*)\\.js$": "<rootDir>/src/scanner/$1.ts",
+    "^\\.\\./scanner/(.*)\\.js$": "<rootDir>/src/scanner/$1.ts",
+    "^\\./(scan\\.controller|scanner(?:[.-][^/]+)?|source-reader-registry)\\.js$":
+      "<rootDir>/src/scanner/$1.ts",
     "^\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
     "^\\.\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
     "^\\./(history-files\\.service|record-readers|scan-job-mapping|scan-jobs\\.controller|scan-jobs\\.module|scan-jobs\\.service)\\.js$":

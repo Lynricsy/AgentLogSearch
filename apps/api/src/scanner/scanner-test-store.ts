@@ -1,0 +1,185 @@
+import type {
+  FakeHistoryCreate,
+  FakeHistoryFile,
+  FakeMessage,
+  FakeScanJob,
+  FakeSession,
+  FakeSessionCreate,
+  FakeSnapshot,
+  FakeSource,
+  HistoryUniqueArgs,
+  HistoryUpdateArgs,
+  HistoryUpsertArgs,
+  ScanJobUpdateArgs,
+  SessionUpsertArgs,
+} from "./scanner-test-types.js"
+
+export class FakePrisma {
+  public readonly agentSource = {
+    findMany: async (): Promise<readonly FakeSource[]> => this.sources,
+    findUnique: async ({ where }: { readonly where: { readonly id: bigint } }) =>
+      this.sources.find((source) => source.id === where.id) ?? null,
+    update: async (): Promise<void> => undefined,
+  }
+
+  public readonly historyFile = {
+    findUnique: async ({ where }: HistoryUniqueArgs) =>
+      this.histories.find(
+        (file) =>
+          file.sourceId === where.sourceId_filePath.sourceId &&
+          file.filePath === where.sourceId_filePath.filePath,
+      ) ?? null,
+    upsert: async ({ create, update, where }: HistoryUpsertArgs) => {
+      const existing = await this.historyFile.findUnique({ where })
+      if (existing) {
+        Object.assign(existing, update)
+        return existing
+      }
+      return this.addHistoryFile(create)
+    },
+    update: async ({ data, where }: HistoryUpdateArgs) => {
+      const existing = this.histories.find((file) => file.id === where.id)
+      if (existing) Object.assign(existing, data)
+      return existing ?? null
+    },
+  }
+
+  public readonly scanJob = {
+    create: async ({ data }: { readonly data: Record<string, unknown> }) => {
+      const record: FakeScanJob = { ...data, id: this.nextId() }
+      this.scanJobs = [...this.scanJobs, record]
+      return record
+    },
+    update: async ({ data, where }: ScanJobUpdateArgs) => {
+      const previous = this.scanJobs.find((job) => job.id === where.id) ?? { id: where.id }
+      const record: FakeScanJob = { ...previous, ...data, id: where.id }
+      this.scanJobs = this.scanJobs.map((job) => (job.id === where.id ? record : job))
+      return record
+    },
+  }
+
+  public readonly agentSession = {
+    upsert: async ({ create, update, where }: SessionUpsertArgs) => {
+      const existing = this.sessions.find(
+        (session) =>
+          session.sourceId === where.sourceId_externalThreadId.sourceId &&
+          session.externalThreadId === where.sourceId_externalThreadId.externalThreadId,
+      )
+      if (existing) {
+        Object.assign(existing, update)
+        return existing
+      }
+      return this.addSession(create)
+    },
+  }
+
+  public readonly agentMessage = {
+    deleteMany: async ({ where }: { readonly where: { readonly sessionId: bigint } }) => {
+      this.messages = this.messages.filter((message) => message.sessionId !== where.sessionId)
+    },
+    createMany: async ({ data }: { readonly data: readonly FakeMessage[] }) => {
+      if (this.shouldFailMessageCreateMany) {
+        this.shouldFailMessageCreateMany = false
+        throw new Error("insert failed")
+      }
+      this.messages = [...this.messages, ...data]
+      return { count: data.length }
+    },
+  }
+
+  public readonly agentChunk = {
+    deleteMany: async (): Promise<void> => undefined,
+    create: async (): Promise<void> => undefined,
+  }
+
+  private histories: FakeHistoryFile[] = []
+  private id = 1n
+  private messages: FakeMessage[] = []
+  private scanJobs: ReadonlyArray<FakeScanJob> = []
+  private sessions: FakeSession[] = []
+  private shouldFailMessageCreateMany = false
+  private sources: FakeSource[] = []
+
+  public async $transaction<T>(callback: (tx: FakePrisma) => Promise<T>): Promise<T> {
+    const snapshot = this.snapshot()
+    try {
+      return await callback(this)
+    } catch (error) {
+      this.restore(snapshot)
+      throw error
+    }
+  }
+
+  public addSource(input: Partial<FakeSource>): FakeSource {
+    const source: FakeSource = {
+      id: this.nextId(),
+      name: "Test source",
+      sourcePreset: "generic",
+      parserType: "generic_jsonl",
+      readerType: "file_glob",
+      rootPath: input.rootPath ?? "",
+      fileGlob: input.fileGlob ?? "*.jsonl",
+      resumeTemplate: "cd {quoted cwd}",
+      enabled: true,
+      ...input,
+    }
+    this.sources = [...this.sources, source]
+    return source
+  }
+
+  public addHistoryFile(input: FakeHistoryCreate): FakeHistoryFile {
+    const history: FakeHistoryFile = {
+      id: this.nextId(),
+      fileHash: null,
+      parseStatus: "pending",
+      errorMessage: null,
+      ...input,
+    }
+    this.histories = [...this.histories, history]
+    return history
+  }
+
+  public addSession(input: FakeSessionCreate): FakeSession {
+    const session: FakeSession = { id: this.nextId(), ...input }
+    this.sessions = [...this.sessions, session]
+    return session
+  }
+
+  public addMessage(input: FakeMessage): void {
+    this.messages = [...this.messages, input]
+  }
+
+  public failNextMessageCreateMany(): void {
+    this.shouldFailMessageCreateMany = true
+  }
+
+  public messagesFor(sessionId: bigint): readonly FakeMessage[] {
+    return this.messages.filter((message) => message.sessionId === sessionId)
+  }
+
+  public onlyHistoryFile(): FakeHistoryFile {
+    const value = this.histories[0]
+    if (value === undefined) throw new Error("missing history")
+    return value
+  }
+
+  private nextId(): bigint {
+    const value = this.id
+    this.id += 1n
+    return value
+  }
+
+  private snapshot(): FakeSnapshot {
+    return {
+      histories: this.histories.map((value) => ({ ...value })),
+      messages: this.messages.map((value) => ({ ...value })),
+      sessions: this.sessions.map((value) => ({ ...value })),
+    }
+  }
+
+  private restore(snapshot: FakeSnapshot): void {
+    this.histories = [...snapshot.histories]
+    this.messages = [...snapshot.messages]
+    this.sessions = [...snapshot.sessions]
+  }
+}
