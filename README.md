@@ -6,7 +6,7 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T9 foundation work:
+The project has completed the T1-T10 foundation work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
@@ -18,9 +18,21 @@ The project has completed the T1-T9 foundation work:
   truncated list error messages.
 - Synthetic fixture data and validation tests for Codex CLI, Claude Code, Pi Agent, OpenCode,
   Generic JSONL, Generic JSON, Generic Markdown, and demo-agent sessions.
+- Parser infrastructure for the seven supported history formats, including `ParserRegistry`,
+  `file-glob` source reading, and read-only SQLite source reading for OpenCode.
 
-The parser/import pipeline, scanner, embedding worker, semantic search implementation, and final
-search UI workflows are still pending.
+Supported parser types:
+
+- `codex-jsonl`
+- `claude-jsonl`
+- `pi-jsonl`
+- `opencode-sqlite`
+- `generic-jsonl`
+- `generic-json`
+- `generic-markdown`
+
+The scanner/import DB pipeline, embedding worker, semantic search implementation, and final search
+UI workflows are still pending.
 
 ## Workspace
 

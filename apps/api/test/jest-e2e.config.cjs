@@ -20,6 +20,11 @@ module.exports = {
     "^\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\.\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\./health\\.controller\\.js$": "<rootDir>/src/health.controller.ts",
+    "^\\./parsers-test-support\\.js$": "<rootDir>/src/parsers-test-support.ts",
+    "^\\./parsers/(.*)\\.js$": "<rootDir>/src/parsers/$1.ts",
+    "^\\.\\./parsers/(.*)\\.js$": "<rootDir>/src/parsers/$1.ts",
+    "^\\./(agent-jsonl-parsers|content-normalizer|generic-json-parsers|generic-markdown-parser|json-parse|opencode-sqlite-parser|parser-errors|parser-registry|parser-types|record-access|session-builder|source-guards|source-readers)\\.js$":
+      "<rootDir>/src/parsers/$1.ts",
     "^\\./pg\\.service\\.js$": "<rootDir>/src/database/pg.service.ts",
     "^\\./prisma\\.service\\.js$": "<rootDir>/src/database/prisma.service.ts",
     "^\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",

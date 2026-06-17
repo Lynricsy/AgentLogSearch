@@ -328,7 +328,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Shell: run fixture validation script and save `.omo/evidence/task-9-fixtures.txt`.
   Commit: Y | `test(fixtures): 🧪 add parser and demo history samples` | `sample-data`, test helpers
 
-- [ ] T10. 实现七类 parser、source reader 与 ParserRegistry
+- [x] T10. 实现七类 parser、source reader 与 ParserRegistry
   What to do / Must NOT do:
   - 实现 `AgentHistoryParser` interface、`ParsedSession`/`ParsedMessage` mapping、`ParserRegistry`。
   - Parser: `codex-jsonl`、`claude-jsonl`、`pi-jsonl`、`opencode-sqlite`、`generic-jsonl`、`generic-json`、`generic-markdown`。
