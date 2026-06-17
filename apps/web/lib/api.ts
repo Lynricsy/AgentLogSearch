@@ -1,8 +1,8 @@
 import {
-  type AgentSession,
+  type AgentSessionDetail,
   type AgentSource,
   type ApiErrorResponse,
-  agentSessionSchema,
+  agentSessionDetailSchema,
   agentSourceSchema,
   apiErrorResponseSchema,
   type PaginatedResponse,
@@ -28,7 +28,7 @@ export type ApiClient = {
   readonly searchSemantic: (payload: SemanticSearchRequest) => Promise<SemanticSearchResponse>
   readonly listSources: () => Promise<PaginatedResponse<AgentSource>>
   readonly listScanJobs: () => Promise<PaginatedResponse<ScanJob>>
-  readonly getSession: (id: string) => Promise<AgentSession>
+  readonly getSession: (id: string) => Promise<AgentSessionDetail>
 }
 
 export class ApiClientError extends Error {
@@ -76,7 +76,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     listSources: () => requestJson(api.get("sources"), paginatedResponseSchema(agentSourceSchema)),
     listScanJobs: () => requestJson(api.get("scan-jobs"), paginatedResponseSchema(scanJobSchema)),
     getSession: (id) =>
-      requestJson(api.get(`sessions/${encodeURIComponent(id)}`), agentSessionSchema),
+      requestJson(api.get(`sessions/${encodeURIComponent(id)}`), agentSessionDetailSchema),
   }
 }
 

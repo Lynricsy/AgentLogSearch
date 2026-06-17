@@ -6,13 +6,13 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T14 foundation, scanner/import, scheduler, chunker, and mock
-embedding work:
+The project has completed the T1-T15 foundation, scanner/import, scheduler, chunker, mock
+embedding, semantic search, and session detail API work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
 - `apps/web` Next.js shell with API client wiring and initial routes.
-- `apps/api` NestJS service with `/api/health`.
+- `apps/api` NestJS service with `/api/health`, semantic search, and session detail routes.
 - PostgreSQL, Prisma, and pgvector schema/migration/service foundation for sources, history files,
   sessions, messages, chunks, scan jobs, and embedding jobs.
 - Scan job listing API with source metadata, pagination bounds, explicit parse status mapping, and
@@ -28,7 +28,12 @@ embedding work:
 - Scheduler support for periodic due-source scans.
 - Chunker service that creates overlapping message windows with session metadata headers for later
   embedding.
-- Deterministic `mock-1024` embedding provider plus process/rebuild APIs for pending chunks.
+- Deterministic lexical `mock-1024` embedding provider plus process/rebuild APIs for pending
+  chunks.
+- pgvector semantic search API that ranks ready chunks with cosine distance, aggregates chunk
+  matches to session-level results, and returns matched chunk snippets.
+- Session detail API that returns session metadata, resume command, and complete messages ordered by
+  sequence.
 
 Supported parser types:
 
@@ -40,8 +45,7 @@ Supported parser types:
 - `generic-json`
 - `generic-markdown`
 
-Real OpenAI/Ollama/http embedding providers, semantic search implementation, and final search UI
-workflows are still pending.
+Real OpenAI/Ollama/http embedding providers and final wired search UI workflows are still pending.
 
 ## Workspace
 
@@ -56,6 +60,11 @@ AgentLogSearch is designed to run on localhost by default. Local Agent CLI histo
 developer machine during this implementation wave. Resume commands are displayed and copied only;
 the application must never execute `codex resume`, `claude --resume`, `pi --session`, or
 `opencode --session` on behalf of the user.
+
+The current API has no authentication or authorization layer. Search and session detail endpoints can
+return complete indexed conversation messages, so keep the API and web app bound to localhost only.
+Do not bind the services to `0.0.0.0`, publish the ports, put them behind a public reverse proxy, or
+otherwise expose them to a network you do not fully control.
 
 Do not commit private local state:
 
@@ -226,11 +235,79 @@ The response is an embedding job summary:
 }
 ```
 
-The first implementation only includes the deterministic `mock-1024` provider. It validates the
-provider and database vector dimensions at startup, writes `vector(1024)` values through raw
+The first implementation only includes the deterministic lexical `mock-1024` provider. It validates
+the provider and database vector dimensions at startup, writes `vector(1024)` values through raw
 PostgreSQL via `PgService`, and uses row locks with `FOR UPDATE SKIP LOCKED` to avoid duplicate
 batch processing. Real OpenAI, Ollama, and HTTP embedding providers are intentionally left as future
 provider implementations.
+
+## Semantic Search API
+
+The API exposes semantic search under `POST /api/search/semantic`. The endpoint embeds the query
+with the local `mock-1024` provider, searches only chunks whose embedding status is `ready` and whose
+vector is present, ranks chunk candidates with pgvector cosine distance (`<=>`) through raw
+PostgreSQL, and aggregates the top chunk hits into session-level records.
+
+Request body:
+
+```json
+{
+  "query": "之前修过登录接口 500 的那次",
+  "topK": 50,
+  "sessionLimit": 10,
+  "agentName": "generic",
+  "cwdKeyword": "CliSearch"
+}
+```
+
+`query` is required and capped at 2,000 characters. `topK` defaults to `50` and is capped at `100`;
+`sessionLimit` defaults to `10` and is capped at `50`. `agentName` and `cwdKeyword` are optional
+filters. When no ready chunks are available or no chunks match, the response is HTTP 200 with an
+empty records array:
+
+```json
+{
+  "records": []
+}
+```
+
+Result records are session-level. Each record includes the session id, score, agent name, cwd,
+thread id, title, resume command, message count, last message timestamp, and up to three matched
+chunks sorted by score:
+
+```json
+{
+  "records": [
+    {
+      "sessionId": "1",
+      "score": 0.91,
+      "agentName": "generic",
+      "cwd": "/workspace/clisearch-demo",
+      "threadId": "abc123",
+      "title": "登录接口 500 修复演示",
+      "resumeCommand": "cd '/workspace/clisearch-demo' && codex resume 'abc123'",
+      "messageCount": 4,
+      "lastMessageAt": "2026-01-02T03:04:08.000Z",
+      "matchedChunks": [
+        {
+          "chunkId": "1",
+          "score": 0.91,
+          "snippet": "Agent: generic\nCWD: /workspace/clisearch-demo\nThread: abc123..."
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Sessions API
+
+The API exposes session detail under `GET /api/sessions/:id`. It returns session metadata, the
+copy-only resume command, and complete messages ordered by `seqNo` ascending. Missing or malformed
+ids return the standard API error envelope with HTTP 404 and `session_not_found`.
+
+Because this endpoint returns complete indexed messages, it is intended for local development use
+only and must not be exposed without adding authentication and an explicit deployment threat model.
 
 ## Scan Jobs API
 

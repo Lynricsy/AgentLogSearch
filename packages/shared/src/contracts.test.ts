@@ -39,6 +39,9 @@ describe("shared domain contracts", () => {
         externalThreadId: "thread-1",
         cwd: "/repo",
         title: "Fix login",
+        resumeCommand: "cd /repo && codex resume thread-1",
+        messageCount: 1,
+        lastMessageAt: timestamp,
         startedAt: timestamp,
         updatedAt: timestamp,
       }),
@@ -48,7 +51,7 @@ describe("shared domain contracts", () => {
         role: "assistant",
         content: "Done",
         model: "gpt-5",
-        sequence: 1,
+        seqNo: 1,
         createdAt: timestamp,
       }),
       chunk: agentChunkSchema.parse({

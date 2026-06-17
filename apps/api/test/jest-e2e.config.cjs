@@ -35,6 +35,12 @@ module.exports = {
     "^\\.\\./scanner/(.*)\\.js$": "<rootDir>/src/scanner/$1.ts",
     "^\\./scan\\.controller\\.js$": "<rootDir>/src/scanner/scan.controller.ts",
     "^\\./(scanner[^/]*|source-reader-registry)\\.js$": "<rootDir>/src/scanner/$1.ts",
+    "^\\./search/(.*)\\.js$": "<rootDir>/src/search/$1.ts",
+    "^\\.\\./search/(.*)\\.js$": "<rootDir>/src/search/$1.ts",
+    "^\\./(search[^/]*)\\.js$": "<rootDir>/src/search/$1.ts",
+    "^\\./sessions/(.*)\\.js$": "<rootDir>/src/sessions/$1.ts",
+    "^\\.\\./sessions/(.*)\\.js$": "<rootDir>/src/sessions/$1.ts",
+    "^\\./(session[^/]*|sessions[^/]*)\\.js$": "<rootDir>/src/sessions/$1.ts",
     "^\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
     "^\\.\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
     "^\\./(history-files\\.service|record-readers|scan-job-mapping|scan-jobs\\.controller|scan-jobs\\.module|scan-jobs\\.service)\\.js$":

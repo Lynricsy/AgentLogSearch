@@ -1,12 +1,12 @@
 import { AGENT_JSONL_FIXTURES } from "./fixture-metadata.js"
 import {
-  collectRoles,
   fixturePath,
   parseJson,
   readFixtureText,
   readJsonLines,
   requireRecord,
   validateAgentJsonlFixture,
+  validateDemoSession,
   validateGenericSession,
   validateOpenCodeSqlite,
 } from "./fixture-validation-support.js"
@@ -65,11 +65,11 @@ describe("sample-data fixture validation", () => {
     const databasePath = fixturePath("opencode/opencode.db")
 
     // 操作
-    const demoRoles = collectRoles(demoRecords)
+    const demoSummary = validateDemoSession(demoRecords[0], "demo-agent/session-1.jsonl")
     const sqliteSummary = validateOpenCodeSqlite(databasePath)
 
     // 断言
-    expect(demoRoles).toEqual(["user", "assistant"])
+    expect(demoSummary).toBe("abc123:4")
     expect(sqliteSummary).toBe("opencode-thread-synthetic-001:/workspace/synthetic-opencode:3")
   })
 })

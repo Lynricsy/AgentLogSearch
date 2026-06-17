@@ -63,6 +63,21 @@ export function validateGenericSession(record: JsonRecord | undefined, label: st
   return `${threadId}:${messages.length}`
 }
 
+export function validateDemoSession(record: JsonRecord | undefined, label: string): string {
+  const session = requireRecord(record, label)
+  const threadId = readString(session, "threadId", label)
+  const messages = readRecordArray(session, "messages", label)
+  expect(threadId).toBe("abc123")
+  expect(readString(session, "cwd", label)).toBe("/workspace/clisearch-demo")
+  expect(
+    messages.some((message) => {
+      const content = readValue(message, "content")
+      return typeof content === "string" && content.includes("登录接口返回 500")
+    }),
+  ).toBe(true)
+  return `${threadId}:${messages.length}`
+}
+
 export function validateOpenCodeSqlite(databasePath: string): string {
   const database = new DatabaseSync(databasePath, { readOnly: true })
   try {

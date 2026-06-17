@@ -30,6 +30,9 @@ export const agentSessionSchema = z.object({
   externalThreadId: z.string().min(1),
   cwd: z.string().nullable(),
   title: z.string().nullable(),
+  resumeCommand: z.string().nullable(),
+  messageCount: z.number().int().min(0),
+  lastMessageAt: z.string().datetime().nullable(),
   startedAt: z.string().datetime().nullable(),
   updatedAt: z.string().datetime().nullable(),
 })
@@ -40,8 +43,12 @@ export const agentMessageSchema = z.object({
   role: agentRoleSchema,
   content: z.string(),
   model: z.string().nullable(),
-  sequence: z.number().int().min(0),
+  seqNo: z.number().int().min(0),
   createdAt: z.string().datetime().nullable(),
+})
+
+export const agentSessionDetailSchema = agentSessionSchema.extend({
+  messages: z.array(agentMessageSchema),
 })
 
 export const agentChunkSchema = z.object({
@@ -86,6 +93,7 @@ export type AgentRole = z.infer<typeof agentRoleSchema>
 export type HistoryFile = z.infer<typeof historyFileSchema>
 export type AgentSession = z.infer<typeof agentSessionSchema>
 export type AgentMessage = z.infer<typeof agentMessageSchema>
+export type AgentSessionDetail = z.infer<typeof agentSessionDetailSchema>
 export type AgentChunk = z.infer<typeof agentChunkSchema>
 export type ScanJobSource = z.infer<typeof scanJobSourceSchema>
 export type ScanJob = z.infer<typeof scanJobSchema>

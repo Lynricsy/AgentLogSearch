@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { SEMANTIC_SEARCH_DEFAULTS, semanticSearchRequestSchema } from "./index"
+import {
+  SEMANTIC_SEARCH_DEFAULTS,
+  semanticSearchRequestSchema,
+  semanticSearchResponseSchema,
+} from "./index"
 
 describe("semanticSearchRequestSchema", () => {
   it("parses a valid semantic search request when optional bounds are omitted", () => {
@@ -31,6 +35,8 @@ describe("semanticSearchRequestSchema", () => {
       { query: "valid", sessionLimit: 51 },
       { query: "valid", topK: 0 },
       { query: "valid", sessionLimit: 0 },
+      { query: "a".repeat(SEMANTIC_SEARCH_DEFAULTS.maxQueryLength + 1) },
+      { query: "valid", dateFrom: "2026-01-01T00:00:00.000Z" },
     ]
 
     // When
@@ -38,5 +44,40 @@ describe("semanticSearchRequestSchema", () => {
 
     // Then
     expect(results.every((result) => !result.success)).toBe(true)
+  })
+})
+
+describe("semanticSearchResponseSchema", () => {
+  it("parses session-level semantic results when matched chunks are present", () => {
+    // Given
+    const payload = {
+      records: [
+        {
+          sessionId: "1",
+          score: 0.91,
+          agentName: "generic",
+          cwd: "/workspace",
+          threadId: "abc123",
+          title: "登录接口修复",
+          resumeCommand: "cd /workspace",
+          messageCount: 4,
+          lastMessageAt: "2026-01-02T03:04:08.000Z",
+          matchedChunks: [
+            {
+              chunkId: "9",
+              score: 0.91,
+              snippet: "登录接口返回 500",
+            },
+          ],
+        },
+      ],
+    }
+
+    // When
+    const result = semanticSearchResponseSchema.parse(payload)
+
+    // Then
+    expect(result.records[0]?.threadId).toBe("abc123")
+    expect(result.records[0]?.matchedChunks[0]?.snippet).toContain("登录接口返回 500")
   })
 })

@@ -5,6 +5,8 @@ import { EmbeddingsModule } from "./embeddings/embeddings.module.js"
 import { HealthController } from "./health.controller.js"
 import { ScanJobsModule } from "./scan-jobs/scan-jobs.module.js"
 import { ScannerModule } from "./scanner/scanner.module.js"
+import { SearchModule } from "./search/search.module.js"
+import { SessionsModule } from "./sessions/sessions.module.js"
 import { SourcesModule } from "./sources/sources.module.js"
 
 @Module({
@@ -16,6 +18,8 @@ import { SourcesModule } from "./sources/sources.module.js"
     ScanJobsModule,
     ScannerModule,
     EmbeddingsModule,
+    SearchModule,
+    SessionsModule,
   ],
 })
 export class AppModule {}

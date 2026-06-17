@@ -426,7 +426,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - HTTP: `POST /api/embeddings/process`, SQL count READY chunks and inspect latest `embedding_job`; save `.omo/evidence/task-14-embedding.http`.
   Commit: Y | `feat(embeddings): 🧬 process mock vectors reliably` | embeddings module, tests
 
-- [ ] T15. 实现 pgvector semantic search、session 聚合和 session detail API
+- [x] T15. 实现 pgvector semantic search、session 聚合和 session detail API
   What to do / Must NOT do:
   - 实现 `SearchService` raw SQL cosine query using `<=>` and `LIMIT`。
   - 过滤：READY only、agentName、cwdKeyword。

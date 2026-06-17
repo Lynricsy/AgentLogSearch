@@ -40,6 +40,87 @@ describe("createApiClient", () => {
     })
   })
 
+  it("parses session-level semantic search responses", async () => {
+    const client = createApiClient({
+      baseUrl: "http://api.test/api",
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            records: [
+              {
+                agentName: "generic",
+                cwd: "/workspace/clisearch-demo",
+                lastMessageAt: "2026-01-02T03:04:08.000Z",
+                matchedChunks: [
+                  {
+                    chunkId: "9",
+                    score: 0.91,
+                    snippet: "登录接口返回 500",
+                  },
+                ],
+                messageCount: 4,
+                resumeCommand: "cd '/workspace/clisearch-demo' && codex resume 'abc123'",
+                score: 0.91,
+                sessionId: "1",
+                threadId: "abc123",
+                title: "登录接口 500 修复演示",
+              },
+            ],
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+    })
+
+    const result = await client.searchSemantic({
+      query: "之前修过登录接口 500 的那次",
+      sessionLimit: 10,
+      topK: 50,
+    })
+
+    expect(result.records[0]?.threadId).toBe("abc123")
+    expect(result.records[0]?.matchedChunks[0]?.snippet).toContain("登录接口返回 500")
+  })
+
+  it("parses session detail responses with ordered messages", async () => {
+    const client = createApiClient({
+      baseUrl: "http://api.test/api",
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            agentName: "generic",
+            cwd: "/workspace/clisearch-demo",
+            externalThreadId: "abc123",
+            historyFileId: "1",
+            id: "1",
+            lastMessageAt: "2026-01-02T03:04:08.000Z",
+            messageCount: 1,
+            messages: [
+              {
+                content: "登录接口返回 500",
+                createdAt: "2026-01-02T03:04:06.000Z",
+                id: "10",
+                model: "demo-agent-synthetic",
+                role: "assistant",
+                seqNo: 1,
+                sessionId: "1",
+              },
+            ],
+            resumeCommand: "cd '/workspace/clisearch-demo' && codex resume 'abc123'",
+            sourceId: "1",
+            startedAt: "2026-01-02T03:04:05.000Z",
+            title: "登录接口 500 修复演示",
+            updatedAt: "2026-01-02T03:04:08.000Z",
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+    })
+
+    const result = await client.getSession("1")
+
+    expect(result.externalThreadId).toBe("abc123")
+    expect(result.messages[0]?.content).toContain("登录接口返回 500")
+  })
+
   it("throws a typed API client error when the response contract is invalid", async () => {
     const client = createApiClient({
       baseUrl: "http://api.test/api",
