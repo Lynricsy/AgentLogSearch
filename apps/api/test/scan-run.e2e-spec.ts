@@ -1,5 +1,10 @@
 import { resolve } from "node:path"
-import { SOURCE_PRESET_DEFAULTS } from "@agent-log-search/shared"
+import {
+  type ParserType,
+  SOURCE_PRESET_DEFAULTS,
+  type SourcePreset,
+  type SourceReaderType,
+} from "@agent-log-search/shared"
 import type { INestApplication } from "@nestjs/common"
 import { Test } from "@nestjs/testing"
 import { EmbeddingStatus } from "@prisma/client"
@@ -64,6 +69,16 @@ describe("Scan Run API", () => {
         ...SOURCE_PRESET_DEFAULTS.generic,
         fileGlob: "*.jsonl",
       }),
+      createSource("Generic JSON", "generic-json", "generic", {
+        ...SOURCE_PRESET_DEFAULTS.generic,
+        fileGlob: "*.json",
+        parserType: "generic-json",
+      }),
+      createSource("Generic Markdown", "generic-markdown", "generic", {
+        ...SOURCE_PRESET_DEFAULTS.generic,
+        fileGlob: "*.md",
+        parserType: "generic-markdown",
+      }),
       createSource("Codex", "codex-jsonl", "codex", SOURCE_PRESET_DEFAULTS.codex),
       createSource("Claude", "claude-jsonl", "claude", SOURCE_PRESET_DEFAULTS["claude-code"]),
       createSource("Pi", "pi-jsonl", "pi-agent", SOURCE_PRESET_DEFAULTS["pi-agent"]),
@@ -77,23 +92,44 @@ describe("Scan Run API", () => {
     // Then
     expect(response.status).toBe(201)
     expect(response.body).toEqual({
-      records: expect.arrayContaining([
-        expect.objectContaining({ sourceId: created[0]?.id, status: "completed" }),
-        expect.objectContaining({ sourceId: created[1]?.id, status: "completed" }),
-        expect.objectContaining({ sourceId: created[2]?.id, status: "completed" }),
-        expect.objectContaining({ sourceId: created[3]?.id, status: "completed" }),
-        expect.objectContaining({ sourceId: created[4]?.id, status: "completed" }),
-      ]),
+      records: expect.arrayContaining(
+        created.map((source) =>
+          expect.objectContaining({ sourceId: source.id, status: "completed" }),
+        ),
+      ),
     })
     await expectImportedCounts(sourceIds)
     await expectImportedChunks(sourceIds)
+    await expectImportedSession({
+      chunkSnippet: "synthetic-json-fixture",
+      messageSnippet: "extract threadId, cwd, title, roles, and content from JSON.",
+      modelName: "generic-json-synthetic",
+      sourceId: BigInt(created[1]?.id ?? "0"),
+      threadId: "generic-json-thread-synthetic-001",
+      title: "Synthetic Generic JSON Session",
+    })
+    await expectImportedSession({
+      chunkSnippet: "markdown-tool-result",
+      messageSnippet: "Markdown fixtures expose threadId, cwd, title, role, and content fields.",
+      modelName: "generic-markdown-synthetic",
+      sourceId: BigInt(created[2]?.id ?? "0"),
+      threadId: "generic-md-thread-synthetic-001",
+      title: "Synthetic Generic Markdown Session",
+    })
   })
 
   async function createSource(
     label: string,
-    parserType: string,
+    parserType: ParserType,
     fixtureDir: string,
-    defaults: typeof SOURCE_PRESET_DEFAULTS.generic,
+    defaults: {
+      readonly fileGlob: string
+      readonly parserType: ParserType
+      readonly readerType: SourceReaderType
+      readonly resumeTemplate: string
+      readonly rootPath: string
+      readonly sourcePreset: SourcePreset
+    },
   ): Promise<{ readonly id: string }> {
     const response = await request(app.getHttpServer())
       .post("/api/sources")
@@ -115,7 +151,7 @@ describe("Scan Run API", () => {
       }),
     ])
     expect(sessions).toBeGreaterThanOrEqual(5)
-    expect(messages).toBeGreaterThanOrEqual(15)
+    expect(messages).toBeGreaterThanOrEqual(21)
   }
 
   async function expectImportedChunks(ids: readonly bigint[]): Promise<void> {
@@ -126,7 +162,7 @@ describe("Scan Run API", () => {
         orderBy: [{ sourceId: "asc" }, { chunkIndex: "asc" }],
       }),
     ])
-    expect(chunks).toBeGreaterThan(0)
+    expect(chunks).toBeGreaterThanOrEqual(7)
     expect(pendingChunk).not.toBeNull()
     expect(pendingChunk?.embeddingStatus).toBe(EmbeddingStatus.pending)
     expect(pendingChunk?.startMessageSeq).not.toBeNull()
@@ -134,6 +170,42 @@ describe("Scan Run API", () => {
     expect(pendingChunk?.chunkText).toContain("Agent:")
     expect(pendingChunk?.chunkText).toContain("CWD:")
     expect(pendingChunk?.chunkText).toContain("Thread:")
+  }
+
+  async function expectImportedSession(input: {
+    readonly chunkSnippet: string
+    readonly messageSnippet: string
+    readonly modelName: string
+    readonly sourceId: bigint
+    readonly threadId: string
+    readonly title: string
+  }): Promise<void> {
+    const session = await prisma.agentSession.findFirst({
+      where: { externalThreadId: input.threadId, sourceId: input.sourceId },
+      include: {
+        chunks: { orderBy: { chunkIndex: "asc" } },
+        messages: { orderBy: { seqNo: "asc" } },
+      },
+    })
+
+    expect(session).not.toBeNull()
+    expect(session?.title).toBe(input.title)
+    expect(session?.cwd).toBe("/workspace/synthetic-generic")
+    expect(session?.modelName).toBe(input.modelName)
+    expect(session?.messageCount).toBe(3)
+    expect(session?.resumeCommand).toBe("cd '/workspace/synthetic-generic'")
+    expect(session?.messages.map((message) => message.role)).toEqual(["user", "assistant", "tool"])
+    expect(
+      session?.messages.some((message) => message.content.includes(input.messageSnippet)),
+    ).toBe(true)
+    expect(
+      session?.chunks.some(
+        (chunk) =>
+          chunk.chunkText.includes(`Thread: ${input.threadId}`) &&
+          chunk.chunkText.includes("CWD: /workspace/synthetic-generic") &&
+          chunk.chunkText.includes(input.chunkSnippet),
+      ),
+    ).toBe(true)
   }
 
   async function deleteE2eSources(): Promise<void> {

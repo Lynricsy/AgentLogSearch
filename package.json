@@ -13,6 +13,7 @@
     "dev": "pnpm --parallel --filter api --filter web dev",
     "lint": "biome check . && pnpm -r lint",
     "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter api test:e2e",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

@@ -541,18 +541,18 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
 ## Final verification wave (after ALL todos)
 > Runs in parallel. ALL must APPROVE. Execute all verification without asking the user for extra confirmation, then report the evidence paths, pass/fail status, and residual risks before declaring the work complete.
 
-- [ ] F1. Plan compliance audit
+- [x] F1. Plan compliance audit
   - Verify every Must have item has implementation evidence.
   - Verify Codex/Claude/Pi/OpenCode/generic parser support has fixtures, tests, e2e scan, and frontend preset behavior.
   - Evidence: `.omo/evidence/f1-plan-compliance.md`
 
-- [ ] F2. Code quality review
+- [x] F2. Code quality review
   - Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e`, `pnpm build`.
   - Run LSP diagnostics on changed TS/TSX files.
   - Verify no `as any`, no `@ts-ignore`, no skipped tests, no local git identity.
   - Evidence: `.omo/evidence/f2-code-quality.txt`
 
-- [ ] F3. Real manual QA
+- [x] F3. Real manual QA
   - Start Postgres/API/Web.
   - API curl sequence:
     1. `GET /api/health` -> 200
@@ -567,7 +567,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
     - Clipboard assertion for resume command
   - Evidence: `.omo/evidence/f3-api.http`, `.omo/evidence/f3-web-desktop.png`, `.omo/evidence/f3-web-mobile.png`
 
-- [ ] F4. Scope fidelity
+- [x] F4. Scope fidelity
   - Confirm no real OpenAI/Ollama/BGE provider was implemented beyond interface/config placeholders.
   - Confirm unsupported CLIs are documented as future/generic import only.
   - Confirm resume command is never executed.

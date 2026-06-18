@@ -19,17 +19,13 @@ function createClient(overrides: Partial<ApiClient> = {}): ApiClient {
     baseUrl: "http://api.test/api",
     createSource: async () => createSource(),
     deleteSource: async () => undefined,
-    getSession: async () => {
-      throw new Error("not used")
-    },
+    getSession: () => Promise.reject(new Error("not used")),
     listScanJobs: async () => ({ items: [], page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }),
     listSourcePresets: async () => SOURCE_PRESET_METADATA,
     listSources: async () => [],
     runSourceScan: async () => ({ records: [] }),
     searchSemantic: async () => ({ records: [] }),
-    updateSource: async () => {
-      throw new Error("not used")
-    },
+    updateSource: () => Promise.reject(new Error("not used")),
     ...overrides,
   }
 }
@@ -44,6 +40,9 @@ describe("SourceWorkspace", () => {
     ["Claude Code", "claude-code"],
     ["Pi Agent", "pi-agent"],
     ["OpenCode", "opencode"],
+    ["Generic JSONL", "generic-jsonl"],
+    ["Generic JSON", "generic-json"],
+    ["Generic Markdown", "generic-markdown"],
   ] satisfies readonly [string, SourcePresetMetadata["id"]][])(
     "autofills source fields for the %s preset",
     async (_label, presetId) => {
