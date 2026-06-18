@@ -13,7 +13,7 @@
     "dev": "pnpm --parallel --filter api --filter web dev",
     "lint": "biome check . && pnpm -r lint",
     "test": "pnpm -r test",
-    "test:e2e": "pnpm --filter api test:e2e",
+    "test:e2e": "DATABASE_URL=${DATABASE_URL:-postgresql://agent_log_search:agent_log_search@localhost:5432/agent_log_search} pnpm --filter api test:e2e",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
