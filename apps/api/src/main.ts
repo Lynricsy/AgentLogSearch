@@ -18,6 +18,8 @@ async function bootstrap(): Promise<void> {
   await app.listen(port, resolveApiHost(API_HOST))
 }
 
-if (process.env["NODE_ENV"] !== "test") {
+const { NODE_ENV } = process.env
+
+if (NODE_ENV !== "test") {
   void bootstrap()
 }

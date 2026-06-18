@@ -115,6 +115,148 @@ Run the database service test:
 pnpm --filter api test -- database.service.spec.ts
 ```
 
+## 本机 Dev 冷启动
+
+本机 dev 模式用于读取当前用户的真实 Agent CLI 历史。API 和 Web 默认只绑定本机回环
+地址；API 允许读取宿主机上的 `~/.codex`、`~/.claude`、`~/.pi` 和
+`~/.local/share/opencode`，前提是你在 `/sources` 页面或 API 请求中显式创建这些
+source。系统只读扫描历史文件，不会改写 CLI 历史目录。
+
+从干净环境启动数据库、迁移并运行两个服务：
+
+```bash
+cp .env.example .env
+pnpm install
+docker compose up -d postgres
+pnpm --filter api prisma:generate
+pnpm --filter api prisma:migrate
+pnpm dev
+```
+
+`pnpm dev` 会同时启动：
+
+- API: `http://127.0.0.1:3001/api`
+- Web: `http://127.0.0.1:3000`
+
+健康检查：
+
+```bash
+curl http://127.0.0.1:3001/api/health
+```
+
+使用仓库内的脱敏 demo fixture 完成本机端到端搜索。注意：本机 dev 的 `rootPath` 使用
+宿主机绝对路径；把下面命令中的 `$PWD` 保持为仓库根目录即可。
+
+```bash
+SOURCE_ID=$(
+  curl -sS http://127.0.0.1:3001/api/sources \
+    -H 'content-type: application/json' \
+    -d "{
+      \"name\":\"README demo-agent\",
+      \"sourcePreset\":\"generic\",
+      \"parserType\":\"generic-jsonl\",
+      \"readerType\":\"file-glob\",
+      \"rootPath\":\"$PWD/sample-data/demo-agent\",
+      \"fileGlob\":\"**/*.jsonl\",
+      \"resumeTemplate\":\"cd {quoted cwd} && codex resume {quoted threadId}\",
+      \"enabled\":true,
+      \"scanIntervalSeconds\":300,
+      \"maxFileSizeBytes\":5242880,
+      \"maxFilesPerScan\":1000,
+      \"followSymlinks\":false
+    }" | node -pe 'JSON.parse(fs.readFileSync(0, "utf8")).id'
+)
+
+curl -sS -X POST "http://127.0.0.1:3001/api/scan/run/$SOURCE_ID"
+curl -sS -X POST http://127.0.0.1:3001/api/embeddings/process \
+  -H 'content-type: application/json' \
+  -d "{\"sourceId\":\"$SOURCE_ID\"}"
+
+SEARCH_JSON=$(
+  curl -sS http://127.0.0.1:3001/api/search/semantic \
+    -H 'content-type: application/json' \
+    -d '{"query":"之前修过登录接口 500 的那次","topK":50,"sessionLimit":10}'
+)
+echo "$SEARCH_JSON" | node -pe 'const data = JSON.parse(fs.readFileSync(0, "utf8")); data.records[0]?.threadId'
+
+SESSION_ID=$(echo "$SEARCH_JSON" | node -pe 'const data = JSON.parse(fs.readFileSync(0, "utf8")); data.records[0]?.sessionId')
+curl -sS "http://127.0.0.1:3001/api/sessions/$SESSION_ID"
+```
+
+期望搜索命中 synthetic thread `abc123`，session detail 返回完整消息和 copy-only
+`resumeCommand`。
+
+### 端口覆盖
+
+默认端口是 Postgres `5432`、API `3001`、Web `3000`。如果本机端口冲突：
+
+```bash
+POSTGRES_PORT=15432 docker compose up -d postgres
+DATABASE_URL=postgresql://agent_log_search:agent_log_search@localhost:15432/agent_log_search \
+API_PORT=3101 \
+pnpm --filter api dev
+API_PROXY_TARGET=http://localhost:3101 \
+pnpm --filter web dev -- --port 3100
+```
+
+Web 默认通过同源 `/api/*` rewrite 访问 API；如果设置
+`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3101/api` 让浏览器直连 API，请仍只在本机
+回环地址使用。当前 API CORS 只允许 `http://127.0.0.1:3000` 与
+`http://localhost:3000`。
+
+## Docker Demo
+
+Docker demo 使用只读 fixture，不默认读取真实宿主历史，并且所有宿主端口仍只发布到
+`127.0.0.1`：
+
+```bash
+docker compose --profile demo config
+docker compose --profile demo build
+docker compose --profile demo up -d
+curl http://127.0.0.1:3001/api/health
+curl http://127.0.0.1:3000/api/health
+```
+
+在 Docker demo 中创建 source 时，`rootPath` 必须使用容器内路径，例如：
+
+- demo-agent: `/sample-data/demo-agent`
+- Codex fixture: `/sample-data/codex`
+- Claude Code fixture: `/sample-data/claude`
+- Pi Agent fixture: `/sample-data/pi-agent`
+- OpenCode fixture: `/sample-data/opencode`
+- Codex 可选 bind mount: `/host-history/codex`
+- Claude Code 可选 bind mount: `/host-history/claude`
+- Pi Agent 可选 bind mount: `/host-history/pi`
+- OpenCode 可选 bind mount: `/host-history/opencode`
+
+Docker demo 的端到端 API 命令与本机 dev 相同，只需要把 source 创建请求里的
+`rootPath` 改为 `/sample-data/demo-agent`。compose 会始终挂载
+`./sample-data:/sample-data:ro`。
+
+可选读取真实宿主历史时，只设置你需要的变量，用绝对宿主路径覆盖对应 bind mount，
+并保持只读：
+
+```bash
+CODEX_HISTORY_HOST_PATH="$HOME/.codex/sessions" \
+docker compose --profile demo up -d
+```
+
+如果某个真实目录不存在，不要设置对应变量；未设置时 compose 会把安全 fixture 挂载到
+`/host-history/*`：Codex 使用 `./sample-data/codex`，Claude Code 使用
+`./sample-data/claude`，Pi Agent 使用 `./sample-data/pi-agent`，OpenCode 使用
+`./sample-data/opencode`，便于 demo 启动。复制 `.env.example` 后，这些变量默认保持
+注释状态。
+
+API 容器通过 `API_HOST=0.0.0.0` 在容器内监听，Web 容器通过
+`next start --hostname 0.0.0.0` 暴露给宿主端口，且 Web 的
+`API_PROXY_TARGET=http://api:3001` 指向 compose 网络内的 API 服务。
+
+停止 Docker demo：
+
+```bash
+docker compose --profile demo down
+```
+
 ## First-Class Sources
 
 - Codex CLI: `~/.codex/sessions/**/*.jsonl`
@@ -122,6 +264,12 @@ pnpm --filter api test -- database.service.spec.ts
 - Pi Agent: `~/.pi/agent/sessions/**/*.jsonl`
 - OpenCode: `~/.local/share/opencode/opencode.db`
 - Generic JSONL, JSON, and Markdown imports
+
+The `/sources` UI and `GET /api/sources/presets` expose first-class presets for Codex CLI,
+Claude Code, Pi Agent, OpenCode, Generic JSONL, Generic JSON, and Generic Markdown. Unsupported
+Agent CLIs are intentionally not first-class presets in this wave. Import them through Generic JSONL,
+Generic JSON, or Generic Markdown after exporting/sanitizing into those shapes; add a real preset only
+after sample history fixtures and parser rules are available.
 
 ## Sample Data Fixtures
 
@@ -395,7 +543,7 @@ The API listens on `API_HOST`/`API_PORT` from `.env.example` and defaults to
 `127.0.0.1:3001`. Health check:
 
 ```bash
-curl http://localhost:3001/api/health
+curl http://127.0.0.1:3001/api/health
 ```
 
 Start the web app:
@@ -404,10 +552,23 @@ Start the web app:
 pnpm --filter web dev
 ```
 
+或者用根脚本同时启动 API 和 Web：
+
+```bash
+pnpm dev
+```
+
 Web 的 `dev` 和 `start` 脚本都会显式绑定 `127.0.0.1`，因此默认只监听本机回环地址。
 Web 客户端默认请求相对路径 `/api`，Next.js rewrite 会把 `/api/*` 代理到
 `API_PROXY_TARGET`，未设置时默认是 `http://localhost:3001`。在 Web 也只绑定回环地址
 的前提下，同源 `/api` rewrite 只服务本机访问，不会把本地 API 暴露到外部网络。只有
 本地开发需要浏览器直连 API 时，才设置可选的
-`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api`；直连模式需要 API CORS 允许对应
+`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3001/api`；直连模式需要 API CORS 允许对应
 本机 Web 源。
+
+`.env.example` 覆盖本地运行所需的 API/Web/Postgres 变量、scanner scheduler 变量和
+Docker 可选历史目录 bind mount 变量。Embedding 当前固定使用代码内置
+`mock-1024` provider 与 `vector(1024)` schema；`.env.example` 中的 embedding 字段是
+文档对齐项，不会切换 provider。路径限制是 source 请求字段：
+`scanIntervalSeconds`、`maxFileSizeBytes`、`maxFilesPerScan`、`followSymlinks`；当前不是
+全局运行时 env 开关。

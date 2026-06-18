@@ -60,6 +60,7 @@ describe("ScannerScheduler", () => {
 
   it("scans due sources on the global interval when enabled", async () => {
     // Given
+    jest.setSystemTime(new Date("2026-06-17T10:00:00.000Z"))
     setEnv("SCAN_SCHEDULER_ENABLED", "true")
     setEnv("SCAN_INTERVAL_SECONDS", "2")
     const prisma = new FakePrisma()

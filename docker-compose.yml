@@ -3,18 +3,73 @@ services:
     image: pgvector/pgvector:pg17
     container_name: agent-log-search-postgres
     environment:
-      POSTGRES_DB: agent_log_search
-      POSTGRES_USER: agent_log_search
-      POSTGRES_PASSWORD: agent_log_search
+      POSTGRES_DB: ${POSTGRES_DB:-agent_log_search}
+      POSTGRES_USER: ${POSTGRES_USER:-agent_log_search}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent_log_search}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agent_log_search -d agent_log_search"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER:-agent_log_search} -d $${POSTGRES_DB:-agent_log_search}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  api:
+    profiles: ["demo"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: agent-log-search-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_log_search}:${POSTGRES_PASSWORD:-agent_log_search}@postgres:5432/${POSTGRES_DB:-agent_log_search}
+      SCAN_SCHEDULER_ENABLED: ${SCAN_SCHEDULER_ENABLED:-false}
+      SCAN_INTERVAL_SECONDS: ${SCAN_INTERVAL_SECONDS:-60}
+    ports:
+      - "127.0.0.1:${API_PORT:-3001}:3001"
+    volumes:
+      - ./sample-data:/sample-data:ro
+      - ${CODEX_HISTORY_HOST_PATH:-./sample-data/codex}:/host-history/codex:ro
+      - ${CLAUDE_HISTORY_HOST_PATH:-./sample-data/claude}:/host-history/claude:ro
+      - ${PI_HISTORY_HOST_PATH:-./sample-data/pi-agent}:/host-history/pi:ro
+      - ${OPENCODE_HISTORY_HOST_PATH:-./sample-data/opencode}:/host-history/opencode:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3001/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  web:
+    profiles: ["demo"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        API_PROXY_TARGET: http://api:3001
+    container_name: agent-log-search-web
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_PROXY_TARGET: http://api:3001
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
 
 volumes:
   postgres-data:

@@ -516,7 +516,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Browser: search -> click detail -> assert user/assistant messages and metadata; screenshot `.omo/evidence/task-19-session-detail.png`.
   Commit: Y | `feat(web): 💬 render full session details` | web sessions page/components
 
-- [ ] T20. Docker/dev workflow、README 完整化和端到端演示收口
+- [x] T20. Docker/dev workflow、README 完整化和端到端演示收口
   What to do / Must NOT do:
   - 完成 Dockerfiles/compose for postgres/api/web。
   - 明确两种运行模式：

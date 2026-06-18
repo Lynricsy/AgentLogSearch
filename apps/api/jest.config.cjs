@@ -20,6 +20,7 @@ module.exports = {
     "^\\./database-url\\.js$": "<rootDir>/src/database/database-url.ts",
     "^\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\.\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
+    "^\\./env-file-config\\.js$": "<rootDir>/src/env-file-config.ts",
     "^\\./health\\.controller\\.js$": "<rootDir>/src/health.controller.ts",
     "^\\./embeddings/(.*)\\.js$": "<rootDir>/src/embeddings/$1.ts",
     "^\\.\\./embeddings/(.*)\\.js$": "<rootDir>/src/embeddings/$1.ts",
