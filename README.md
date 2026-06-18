@@ -6,9 +6,9 @@ and messages, stores searchable chunks, and shows copy-only resume commands.
 
 ## Status
 
-The project has completed the T1-T18 foundation, scanner/import, scheduler, chunker, mock
+The project has completed the T1-T19 foundation, scanner/import, scheduler, chunker, mock
 embedding, semantic search, session detail API, `/sources` source management UI, and `/search`
-semantic search UI, and `/scan-jobs` scan history UI work:
+semantic search UI, `/scan-jobs` scan history UI, and `/sessions/[id]` session detail UI work:
 
 - pnpm monorepo workspace and shared TypeScript configuration.
 - `packages/shared` contracts for source presets, API payloads, and route-facing types.
@@ -39,10 +39,12 @@ semantic search UI, and `/scan-jobs` scan history UI work:
 - Sources UI for creating/editing/deleting enabled local sources from first-class presets, toggling
   sources, and running source-scoped manual scans.
 - Search UI for submitting semantic queries, applying `agentName`/`cwdKeyword`/`topK`/`sessionLimit`
-  filters, viewing session result cards with matched chunks, and copying resume commands with a
-  clipboard fallback.
+  filters, opening full session details from result cards, viewing matched chunks, and copying resume
+  commands with a clipboard fallback.
 - Scan jobs UI for loading paginated scan history, showing status/source/start/finish/count columns,
   and keeping long failure text collapsed behind an explicit details action.
+- Session detail UI for loading full messages, rendering role-specific user/assistant/tool/system/
+  unknown bubbles, showing metadata, and copying nullable resume commands safely.
 
 Supported parser types:
 
@@ -54,8 +56,7 @@ Supported parser types:
 - `generic-json`
 - `generic-markdown`
 
-Real OpenAI/Ollama/http embedding providers and the session detail frontend workflow are still
-pending.
+Real OpenAI/Ollama/http embedding providers are still pending.
 
 ## Workspace
 
@@ -315,6 +316,10 @@ chunks sorted by score:
 The API exposes session detail under `GET /api/sessions/:id`. It returns session metadata, the
 copy-only resume command, and complete messages ordered by `seqNo` ascending. Missing or malformed
 ids return the standard API error envelope with HTTP 404 and `session_not_found`.
+
+The web UI exposes `/sessions/[id]` for the same detail contract. Search results link to the encoded
+session id returned by the API, and the detail page renders API failures as an error state instead of
+assuming arbitrary strings are valid database ids.
 
 Because this endpoint returns complete indexed messages, it is intended for local development use
 only and must not be exposed without adding authentication and an explicit deployment threat model.

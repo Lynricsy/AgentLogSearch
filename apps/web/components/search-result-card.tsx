@@ -1,7 +1,8 @@
 "use client"
 
 import type { SemanticSearchResult } from "@agent-log-search/shared"
-import { Hash, MessageSquareText, Terminal } from "lucide-react"
+import { ExternalLink, Hash, MessageSquareText, Terminal } from "lucide-react"
+import Link from "next/link"
 import type { ReactNode } from "react"
 
 import { ResumeCommandBox } from "./resume-command-box"
@@ -14,6 +15,7 @@ type SearchResultCardProps = {
 export function SearchResultCard({ result }: SearchResultCardProps) {
   const title = result.title ?? "Untitled session"
   const cwd = result.cwd ?? "未记录"
+  const detailHref = `/sessions/${encodeURIComponent(result.sessionId)}`
 
   return (
     <article className="space-y-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] p-4">
@@ -26,7 +28,15 @@ export function SearchResultCard({ result }: SearchResultCardProps) {
             <StatusBadge>{result.messageCount} messages</StatusBadge>
           </div>
         </div>
-        <div className="min-w-0 space-y-1 text-xs text-[var(--app-muted)] md:max-w-md">
+        <div className="min-w-0 space-y-2 text-xs text-[var(--app-muted)] md:max-w-md">
+          <Link
+            aria-label={`Open detail for ${title}`}
+            className="inline-flex w-fit items-center gap-2 rounded-md bg-[var(--app-accent-soft)] px-3 py-2 text-xs font-medium text-[var(--app-accent)]"
+            href={detailHref}
+          >
+            <ExternalLink aria-hidden="true" className="size-4" />
+            Open detail
+          </Link>
           <MetaLine icon={<Hash aria-hidden="true" className="size-4" />} label="Thread">
             {result.threadId}
           </MetaLine>

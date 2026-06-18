@@ -72,6 +72,9 @@ describe("SearchWorkspace", () => {
     expect(
       screen.getByText("cd '/workspace/clisearch-demo' && codex resume 'abc123'"),
     ).toBeVisible()
+    expect(
+      screen.getByRole("link", { name: "Open detail for 登录接口 500 修复演示" }),
+    ).toHaveAttribute("href", "/sessions/session-1")
     expect(calls).toEqual([
       {
         agentName: "generic",

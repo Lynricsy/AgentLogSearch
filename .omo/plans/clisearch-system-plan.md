@@ -500,7 +500,7 @@ T1 -> T2 -> T6 -> T7 -> T8 -> T10 -> T11 -> T12 -> T13 -> T14 -> T15 -> T16 -> T
   - Browser: `/scan-jobs` after scan shows completed row and counts; screenshot `.omo/evidence/task-18-scan-jobs.png`.
   Commit: Y | `feat(web): 📊 show scan job history` | web scan-jobs page
 
-- [ ] T19. 实现 `/sessions/[id]` 前端详情页和消息气泡
+- [x] T19. 实现 `/sessions/[id]` 前端详情页和消息气泡
   What to do / Must NOT do:
   - 左侧聊天消息，右侧元信息：Agent、Thread ID、CWD、Resume Command、消息数量、更新时间。
   - MessageBubble 按 user/assistant/tool/system/unknown role 渲染。
