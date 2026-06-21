@@ -1,7 +1,7 @@
 "use client"
 
 import type { PaginatedResponse, ScanJob } from "@agent-log-search/shared"
-import { Button } from "@heroui/react"
+import { Button, Tab, Tabs } from "@heroui/react"
 import { RefreshCw } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 
@@ -12,6 +12,8 @@ import { EmptyState, ErrorState, LoadingState } from "./state-block"
 import { StatusBadge } from "./status-badge"
 
 const PAGE_SIZE = 20
+
+type StatusFilter = "all" | "running" | "completed" | "failed"
 
 type ScanJobsWorkspaceProps = {
   readonly client?: ApiClient
@@ -24,6 +26,7 @@ export type ScanJobsState =
 
 export function ScanJobsWorkspace({ client = apiClient }: ScanJobsWorkspaceProps) {
   const [state, setState] = useState<ScanJobsState>({ kind: "loading" })
+  const [selectedTab, setSelectedTab] = useState<StatusFilter>("all")
   const latestRequestId = useRef(0)
 
   const load = useCallback(
@@ -71,7 +74,12 @@ export function ScanJobsWorkspace({ client = apiClient }: ScanJobsWorkspaceProps
         subtitle="Review scanner runs, source metadata, import counts, and truncated failure summaries."
         title="Scan Jobs"
       />
-      <ScanJobsContent onPageChange={load} state={state} />
+      <ScanJobsContent
+        onPageChange={load}
+        state={state}
+        selectedTab={selectedTab}
+        onSelectTab={setSelectedTab}
+      />
     </section>
   )
 }
@@ -79,9 +87,13 @@ export function ScanJobsWorkspace({ client = apiClient }: ScanJobsWorkspaceProps
 function ScanJobsContent({
   onPageChange,
   state,
+  selectedTab,
+  onSelectTab,
 }: {
   readonly onPageChange: (page: number) => void
   readonly state: ScanJobsState
+  readonly selectedTab: StatusFilter
+  readonly onSelectTab: (tab: StatusFilter) => void
 }) {
   if (state.kind === "loading") {
     return <LoadingState description="Fetching scan job history." title="Loading scan jobs" />
@@ -100,7 +112,37 @@ function ScanJobsContent({
     )
   }
 
-  return <ScanJobsTable onPageChange={onPageChange} page={state.page} />
+  const filteredItems = filterByStatus(state.page.items, selectedTab)
+  const filteredPage: PaginatedResponse<ScanJob> = { ...state.page, items: filteredItems }
+
+  return (
+    <div className="space-y-3">
+      <Tabs
+        aria-label="Scan jobs status filter"
+        color="primary"
+        selectedKey={selectedTab}
+        variant="underlined"
+        onSelectionChange={(key) => onSelectTab(key as StatusFilter)}
+      >
+        <Tab key="all" title="All" />
+        <Tab key="running" title="Running" />
+        <Tab key="completed" title="Completed" />
+        <Tab key="failed" title="Failed" />
+      </Tabs>
+      <ScanJobsTable onPageChange={onPageChange} page={filteredPage} />
+    </div>
+  )
+}
+
+function filterByStatus(
+  items: readonly ScanJob[],
+  filter: StatusFilter,
+): readonly ScanJob[] {
+  if (filter === "all") return items
+  if (filter === "running") {
+    return items.filter((job) => job.status === "running" || job.status === "queued")
+  }
+  return items.filter((job) => job.status === filter)
 }
 
 function describeError(error: unknown): string {

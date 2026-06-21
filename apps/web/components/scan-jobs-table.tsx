@@ -1,9 +1,8 @@
 "use client"
 
 import type { PaginatedResponse, ScanJob } from "@agent-log-search/shared"
-import { Button } from "@heroui/react"
+import { Button, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from "@heroui/react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import type { ReactNode } from "react"
 import { useState } from "react"
 
 import { StatusBadge } from "./status-badge"
@@ -18,69 +17,88 @@ type ScanJobsTableProps = {
 export function ScanJobsTable({ onPageChange, page }: ScanJobsTableProps) {
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)]">
-        <div className="overflow-x-auto">
-          <table
-            aria-label="Scan jobs"
-            className="min-w-full divide-y divide-[var(--app-border)] text-left text-sm"
-          >
-            <thead className="bg-[var(--app-accent-soft)] text-xs text-[var(--app-muted)]">
-              <tr>
-                <HeaderCell>Status</HeaderCell>
-                <HeaderCell className="min-w-48">Source</HeaderCell>
-                <HeaderCell>Started</HeaderCell>
-                <HeaderCell>Finished</HeaderCell>
-                <HeaderCell>Seen</HeaderCell>
-                <HeaderCell>Parsed</HeaderCell>
-                <HeaderCell>Failed</HeaderCell>
-                <HeaderCell>Imported</HeaderCell>
-                <HeaderCell>Chunks</HeaderCell>
-                <HeaderCell className="min-w-72">Error</HeaderCell>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--app-border)]">
-              {page.items.map((job) => (
-                <ScanJobsRow job={job} key={job.id} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table
+        aria-label="Scan jobs"
+        classNames={{
+          base: "rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)]",
+          th: "bg-[var(--app-accent-soft)] text-xs text-[var(--app-muted)]",
+          td: "text-sm text-[var(--app-muted)]",
+          tr: "align-top",
+        }}
+        isHeaderSticky
+        isStriped
+      >
+        <TableHeader>
+          <TableColumn key="status" isRowHeader>
+            Status
+          </TableColumn>
+          <TableColumn key="source">Source</TableColumn>
+          <TableColumn key="time">Time</TableColumn>
+          <TableColumn key="summary">Summary</TableColumn>
+          <TableColumn key="error">Error</TableColumn>
+        </TableHeader>
+        <TableBody
+          isLoading={false}
+          loadingContent={<Skeleton className="h-12 w-full rounded-lg" />}
+          emptyContent="No matching scan jobs for this filter."
+        >
+          {page.items.map((job) => (
+            <TableRow key={job.id}>
+              <TableCell>
+                <StatusBadge tone={statusTone(job.status)}>{job.status}</StatusBadge>
+              </TableCell>
+              <TableCell>
+                <div className="space-y-1">
+                  <p className="font-medium text-[var(--app-ink)]">
+                    {job.source?.name ?? "Unknown source"}
+                  </p>
+                  <div className="flex flex-wrap gap-1 text-xs">
+                    <span>{job.source?.sourcePreset ?? "unknown"}</span>
+                    <span>{job.source?.parserType ?? "unknown parser"}</span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="space-y-0.5">
+                  <p>{formatDateTime(job.startedAt)}</p>
+                  <p>{formatDateTime(job.finishedAt)}</p>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between gap-2 tabular-nums">
+                    <span className="text-[var(--app-muted)]">Seen</span>
+                    <span>{job.filesDiscovered}</span>
+                  </div>
+                  <div className="flex justify-between gap-2 tabular-nums">
+                    <span className="text-[var(--app-muted)]">Parsed</span>
+                    <span>{job.filesParsed}</span>
+                  </div>
+                  <div className="flex justify-between gap-2 tabular-nums">
+                    <span className="text-[var(--app-muted)]">Errors</span>
+                    <span>{job.filesFailed}</span>
+                  </div>
+                  <div className="flex justify-between gap-2 tabular-nums">
+                    <span className="text-[var(--app-muted)]">Imported</span>
+                    <span>
+                      {job.sessionsImported} / {job.messagesImported}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2 tabular-nums">
+                    <span className="text-[var(--app-muted)]">Chunks</span>
+                    <span>{job.chunksCreated}</span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <ErrorSummary errorMessage={job.errorMessage} jobId={job.id} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
       <PaginationControls onPageChange={onPageChange} page={page} />
     </div>
-  )
-}
-
-function ScanJobsRow({ job }: { readonly job: ScanJob }) {
-  return (
-    <tr className="align-top">
-      <BodyCell>
-        <StatusBadge tone={statusTone(job.status)}>{job.status}</StatusBadge>
-      </BodyCell>
-      <BodyCell>
-        <div className="space-y-1">
-          <p className="font-medium text-[var(--app-ink)]">
-            {job.source?.name ?? "Unknown source"}
-          </p>
-          <div className="flex flex-wrap gap-1 text-xs">
-            <span>{job.source?.sourcePreset ?? "unknown"}</span>
-            <span>{job.source?.parserType ?? "unknown parser"}</span>
-          </div>
-        </div>
-      </BodyCell>
-      <BodyCell>{formatDateTime(job.startedAt)}</BodyCell>
-      <BodyCell>{formatDateTime(job.finishedAt)}</BodyCell>
-      <NumberCell>{job.filesDiscovered}</NumberCell>
-      <NumberCell>{job.filesParsed}</NumberCell>
-      <NumberCell>{job.filesFailed}</NumberCell>
-      <BodyCell>
-        {job.sessionsImported} / {job.messagesImported}
-      </BodyCell>
-      <NumberCell>{job.chunksCreated}</NumberCell>
-      <BodyCell>
-        <ErrorSummary errorMessage={job.errorMessage} jobId={job.id} />
-      </BodyCell>
-    </tr>
   )
 }
 
@@ -160,30 +178,6 @@ function PaginationControls({
       </div>
     </div>
   )
-}
-
-function HeaderCell({
-  children,
-  className = "",
-}: {
-  readonly children: string
-  readonly className?: string
-}) {
-  return <th className={`px-3 py-2 font-medium whitespace-nowrap ${className}`}>{children}</th>
-}
-
-function BodyCell({
-  children,
-  className = "",
-}: {
-  readonly children: ReactNode
-  readonly className?: string
-}) {
-  return <td className={`px-3 py-3 text-[var(--app-muted)] ${className}`}>{children}</td>
-}
-
-function NumberCell({ children }: { readonly children: number }) {
-  return <BodyCell className="tabular-nums">{children}</BodyCell>
 }
 
 function statusTone(status: ScanJob["status"]): "neutral" | "success" | "warning" | "danger" {
