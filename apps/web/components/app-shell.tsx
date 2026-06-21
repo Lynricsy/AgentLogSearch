@@ -1,7 +1,13 @@
+"use client"
+
+import { Button } from "@heroui/react"
 import type { LucideIcon } from "lucide-react"
-import { Database, History, Search, Settings } from "lucide-react"
+import { Database, ScanLine, Search, Settings } from "lucide-react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
+
+import { ThemeSwitch } from "./theme-switch"
 
 type NavItem = {
   readonly href: string
@@ -13,7 +19,7 @@ type NavItem = {
 const navItems = [
   { href: "/search", label: "Search", status: "ready", Icon: Search },
   { href: "/sources", label: "Sources", status: "ready", Icon: Database },
-  { href: "/scan-jobs", label: "Scan Jobs", status: "ready", Icon: History },
+  { href: "/scan-jobs", label: "Scan Jobs", status: "ready", Icon: ScanLine },
   { href: "/settings", label: "Settings", status: "future", Icon: Settings },
 ] as const satisfies readonly NavItem[]
 
@@ -21,7 +27,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-ink)]">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col lg:flex-row">
-        <aside className="border-[var(--app-border)] border-b bg-[var(--app-panel)] px-4 py-3 lg:w-64 lg:border-r lg:border-b-0 lg:px-5 lg:py-6">
+        <aside className="border-[var(--app-border)] border-b bg-[var(--app-panel)] px-4 py-3 lg:flex lg:w-56 lg:flex-col lg:border-r lg:border-b-0 lg:px-4 lg:py-6">
           <div className="flex items-center justify-between gap-3 lg:block">
             <div>
               <p className="text-sm font-semibold">AgentLogSearch</p>
@@ -33,12 +39,15 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
           </div>
           <nav
             aria-label="Primary navigation"
-            className="mt-4 flex gap-2 overflow-x-auto lg:flex-col"
+            className="mt-3 flex gap-2 overflow-x-auto lg:mt-6 lg:flex-col lg:gap-1 lg:overflow-visible"
           >
             {navItems.map((item) => (
               <ShellNavLink item={item} key={item.href} />
             ))}
           </nav>
+          <div className="mt-4 lg:mt-auto lg:pt-4">
+            <ThemeSwitch />
+          </div>
         </aside>
         <main className="min-w-0 flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">{children}</main>
       </div>
@@ -47,8 +56,10 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
 }
 
 function ShellNavLink({ item }: { readonly item: NavItem }) {
+  const pathname = usePathname()
   const isFuture = item.status === "future"
   const Icon = item.Icon
+  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
 
   if (isFuture) {
     return (
@@ -63,12 +74,17 @@ function ShellNavLink({ item }: { readonly item: NavItem }) {
   }
 
   return (
-    <Link
-      className="flex min-w-max items-center gap-2 rounded-md border border-[var(--app-border)] bg-[var(--app-accent-soft)] px-3 py-2 text-sm font-medium text-[var(--app-accent)]"
+    <Button
+      as={Link}
+      className="min-w-max justify-start lg:w-full"
+      color={isActive ? "primary" : "default"}
       href={item.href}
+      radius="sm"
+      size="sm"
+      variant={isActive ? "flat" : "light"}
     >
       <Icon aria-hidden="true" className="size-4 shrink-0" />
       <span>{item.label}</span>
-    </Link>
+    </Button>
   )
 }
