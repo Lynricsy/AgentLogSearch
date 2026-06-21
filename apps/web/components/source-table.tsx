@@ -1,9 +1,19 @@
 "use client"
 
 import type { AgentSource } from "@agent-log-search/shared"
-import { Button } from "@heroui/react"
+import {
+  Button,
+  ButtonGroup,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  Tooltip,
+} from "@heroui/react"
 import { Edit, Play, Trash2 } from "lucide-react"
-import type { ReactNode } from "react"
 import type { SourceScanState } from "./source-types"
 import { StatusBadge } from "./status-badge"
 
@@ -31,137 +41,114 @@ export function SourceTable({
   togglingId,
 }: SourceTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)]">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[var(--app-border)] text-left text-sm">
-          <thead className="bg-[var(--app-accent-soft)] text-xs text-[var(--app-muted)]">
-            <tr>
-              <HeaderCell className="min-w-48">Name</HeaderCell>
-              <HeaderCell className="min-w-32">Preset</HeaderCell>
-              <HeaderCell className="min-w-36">Parser</HeaderCell>
-              <HeaderCell className="min-w-72">Root path</HeaderCell>
-              <HeaderCell className="min-w-56">File glob</HeaderCell>
-              <HeaderCell className="min-w-28">Scan interval</HeaderCell>
-              <HeaderCell className="min-w-24">Enabled</HeaderCell>
-              <HeaderCell className="min-w-36">Last scan</HeaderCell>
-              <HeaderCell className="min-w-40">Scan status</HeaderCell>
-              <HeaderCell className="w-72 min-w-72">Actions</HeaderCell>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--app-border)]">
-            {sources.map((source) => (
-              <tr key={source.id} className="align-top">
-                <BodyCell>
-                  <span className="font-medium text-[var(--app-ink)]">{source.name}</span>
-                </BodyCell>
-                <BodyCell>{source.sourcePreset}</BodyCell>
-                <BodyCell>{source.parserType}</BodyCell>
-                <BodyCell>
-                  <TruncatedCode value={source.rootPath} />
-                </BodyCell>
-                <BodyCell>
-                  <TruncatedCode value={source.fileGlob} />
-                </BodyCell>
-                <BodyCell>{formatScanInterval(source.scanIntervalSeconds)}</BodyCell>
-                <BodyCell>
-                  <label className="inline-flex items-center">
-                    <input
-                      aria-label={`Toggle ${source.name}`}
-                      checked={source.enabled}
-                      className="size-4 rounded border-[var(--app-border)] accent-[var(--app-accent)] disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={togglingId === source.id}
-                      onChange={(event) => onToggle(source, event.currentTarget.checked)}
-                      type="checkbox"
-                    />
-                  </label>
-                </BodyCell>
-                <BodyCell>{formatLastScan(source.lastScanAt)}</BodyCell>
-                <BodyCell>
-                  <ScanStatus sourceId={source.id} states={scanStates} />
-                </BodyCell>
-                <BodyCell className="w-72 min-w-72">
-                  <div className="flex w-64 flex-wrap gap-2">
-                    <Button
-                      aria-label={`Scan ${source.name}`}
-                      isDisabled={!source.enabled}
-                      isLoading={scanningId === source.id}
-                      onPress={() => onScan(source)}
-                      radius="sm"
-                      size="sm"
-                      startContent={
-                        scanningId === source.id ? null : (
-                          <Play aria-hidden="true" className="size-4" />
-                        )
-                      }
-                      variant="bordered"
-                    >
-                      Scan
-                    </Button>
-                    <Button
-                      aria-label={`Edit ${source.name}`}
-                      onPress={() => onEdit(source)}
-                      radius="sm"
-                      size="sm"
-                      startContent={<Edit aria-hidden="true" className="size-4" />}
-                      variant="flat"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      aria-label={`Delete ${source.name}`}
-                      color="danger"
-                      isLoading={deletingId === source.id}
-                      onPress={() => onDelete(source)}
-                      radius="sm"
-                      size="sm"
-                      startContent={
-                        deletingId === source.id ? null : (
-                          <Trash2 aria-hidden="true" className="size-4" />
-                        )
-                      }
-                      variant="flat"
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </BodyCell>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-function HeaderCell({
-  children,
-  className = "",
-}: {
-  readonly children: string
-  readonly className?: string
-}) {
-  return <th className={`px-3 py-2 font-medium whitespace-nowrap ${className}`}>{children}</th>
-}
-
-function BodyCell({
-  children,
-  className = "",
-}: {
-  readonly children: ReactNode
-  readonly className?: string
-}) {
-  return <td className={`px-3 py-3 text-[var(--app-muted)] ${className}`}>{children}</td>
-}
-
-function TruncatedCode({ value }: { readonly value: string }) {
-  return (
-    <code
-      className="block max-w-80 truncate whitespace-nowrap rounded bg-[var(--app-accent-soft)] px-2 py-1 text-xs text-[var(--app-ink)]"
-      title={value}
+    <Table
+      aria-label="Sources"
+      classNames={{
+        base: "rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)]",
+        th: "bg-[var(--app-accent-soft)] text-xs text-[var(--app-muted)]",
+        td: "text-sm text-[var(--app-muted)]",
+        tr: "align-top",
+      }}
+      isHeaderSticky
+      isStriped
     >
-      {value}
-    </code>
+      <TableHeader>
+        <TableColumn key="source" isRowHeader>
+          Source
+        </TableColumn>
+        <TableColumn key="parser">Parser</TableColumn>
+        <TableColumn key="path">Path</TableColumn>
+        <TableColumn key="schedule">Schedule</TableColumn>
+        <TableColumn key="enabled">Enabled</TableColumn>
+        <TableColumn key="status">Status</TableColumn>
+        <TableColumn key="actions">Actions</TableColumn>
+      </TableHeader>
+      <TableBody>
+        {sources.map((source) => (
+          <TableRow key={source.id}>
+            <TableCell>
+              <div className="space-y-0.5">
+                <span className="font-medium text-[var(--app-ink)]">{source.name}</span>
+                <span className="block text-xs text-[var(--app-muted)]">{source.sourcePreset}</span>
+              </div>
+            </TableCell>
+            <TableCell>{source.parserType}</TableCell>
+            <TableCell>
+              <div className="space-y-1">
+                <Tooltip content={source.rootPath}>
+                  <code className="block max-w-80 truncate whitespace-nowrap rounded bg-[var(--app-accent-soft)] px-2 py-1 text-xs text-[var(--app-ink)]">
+                    {source.rootPath}
+                  </code>
+                </Tooltip>
+                <Tooltip content={source.fileGlob}>
+                  <code className="block max-w-80 truncate whitespace-nowrap rounded bg-[var(--app-accent-soft)] px-2 py-1 text-xs text-[var(--app-ink)]">
+                    {source.fileGlob}
+                  </code>
+                </Tooltip>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="space-y-0.5">
+                <span>{formatScanInterval(source.scanIntervalSeconds)}</span>
+                <span className="block text-xs">{formatLastScan(source.lastScanAt)}</span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <Switch
+                aria-label={`Toggle ${source.name}`}
+                isDisabled={togglingId === source.id}
+                isSelected={source.enabled}
+                onValueChange={(enabled) => onToggle(source, enabled)}
+                size="sm"
+              />
+            </TableCell>
+            <TableCell>
+              <ScanStatus sourceId={source.id} states={scanStates} />
+            </TableCell>
+            <TableCell>
+              <ButtonGroup radius="sm" size="sm" variant="flat">
+                <Button
+                  aria-label={`Scan ${source.name}`}
+                  isDisabled={!source.enabled}
+                  isLoading={scanningId === source.id}
+                  onPress={() => onScan(source)}
+                  startContent={
+                    scanningId === source.id ? null : (
+                      <Play aria-hidden="true" className="size-4" />
+                    )
+                  }
+                  variant="bordered"
+                >
+                  Scan
+                </Button>
+                <Button
+                  aria-label={`Edit ${source.name}`}
+                  onPress={() => onEdit(source)}
+                  startContent={<Edit aria-hidden="true" className="size-4" />}
+                  variant="flat"
+                >
+                  Edit
+                </Button>
+                <Button
+                  aria-label={`Delete ${source.name}`}
+                  color="danger"
+                  isLoading={deletingId === source.id}
+                  onPress={() => onDelete(source)}
+                  startContent={
+                    deletingId === source.id ? null : (
+                      <Trash2 aria-hidden="true" className="size-4" />
+                    )
+                  }
+                  variant="flat"
+                >
+                  Delete
+                </Button>
+              </ButtonGroup>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 

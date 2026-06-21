@@ -161,12 +161,12 @@ describe("SourceWorkspace", () => {
     render(<SourceWorkspace client={client} />)
 
     await screen.findByText("Demo source")
-    fireEvent.click(screen.getByRole("checkbox", { name: "Toggle Demo source" }))
+    fireEvent.click(screen.getByRole("switch", { name: "Toggle Demo source" }))
 
     await waitFor(() => {
       expect(capturedPayload).toEqual({ enabled: false })
     })
-    expect(screen.getByRole("checkbox", { name: "Toggle Demo source" })).not.toBeChecked()
+    expect(screen.getByRole("switch", { name: "Toggle Demo source" })).not.toBeChecked()
   })
 
   it("shows manual scan success and refreshes the source row", async () => {
