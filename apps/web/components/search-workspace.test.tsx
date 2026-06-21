@@ -59,6 +59,7 @@ describe("SearchWorkspace", () => {
     fireEvent.change(screen.getByLabelText("Semantic query"), {
       target: { value: "之前修过登录接口 500 的那次" },
     })
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }))
     fireEvent.change(screen.getByLabelText("Agent filter"), { target: { value: "generic" } })
     fireEvent.change(screen.getByLabelText("CWD keyword"), { target: { value: "CliSearch" } })
     fireEvent.click(screen.getByRole("button", { name: "Search" }))

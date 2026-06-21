@@ -1,6 +1,7 @@
 "use client"
 
 import type { SemanticSearchResult } from "@agent-log-search/shared"
+import { AnimatePresence, motion } from "framer-motion"
 import { RefreshCw } from "lucide-react"
 import { useState } from "react"
 
@@ -78,6 +79,21 @@ export function SearchWorkspace({ client = apiClient }: SearchWorkspaceProps) {
 }
 
 function SearchResults({ state }: { readonly state: SearchState }) {
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        initial={false}
+        key={state.kind}
+      >
+        {renderState(state)}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+function renderState(state: SearchState) {
   if (state.kind === "idle") {
     return (
       <EmptyState

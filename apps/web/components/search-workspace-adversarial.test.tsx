@@ -141,6 +141,7 @@ describe("SearchWorkspace adversarial input handling", () => {
     )
 
     fireEvent.change(screen.getByLabelText("Semantic query"), { target: { value: "login" } })
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }))
     fireEvent.change(screen.getByLabelText("Agent filter"), { target: { value: "   " } })
     fireEvent.change(screen.getByLabelText("CWD keyword"), { target: { value: "\t  " } })
     fireEvent.click(screen.getByRole("button", { name: "Search" }))
