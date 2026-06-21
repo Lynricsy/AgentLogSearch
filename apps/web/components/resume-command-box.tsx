@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from "@heroui/react"
+import { Button, Card } from "@heroui/react"
 import { Check, Copy } from "lucide-react"
 import { useId, useState } from "react"
 
@@ -42,44 +42,49 @@ export function ResumeCommandBox({ command, threadId }: ResumeCommandBoxProps) {
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-accent-soft)] p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-[var(--app-muted)]">Resume command</p>
-        {command === null ? null : (
-          <Button
-            aria-label={`Copy resume command for ${threadId}`}
-            onPress={copyCommand}
-            radius="sm"
-            size="sm"
-            startContent={
-              copyState.kind === "copied" ? (
-                <Check aria-hidden="true" className="size-4" />
-              ) : (
-                <Copy aria-hidden="true" className="size-4" />
-              )
-            }
-            variant="flat"
-          >
-            {copyState.kind === "copied" ? "Copied" : "Copy"}
-          </Button>
-        )}
-      </div>
-      <code className="block overflow-x-auto whitespace-pre rounded bg-white px-3 py-2 text-xs text-[var(--app-ink)]">
-        {command ?? "未记录"}
-      </code>
-      {copyState.kind === "fallback" && command !== null ? (
-        <div className="space-y-2">
-          <p className="text-xs text-danger-700">{copyState.message}</p>
-          <textarea
-            aria-label={`Manual resume command for ${threadId}`}
-            className="min-h-20 w-full resize-y rounded-md border border-danger-200 bg-white px-3 py-2 text-xs text-[var(--app-ink)] outline-none"
-            id={fallbackId}
-            readOnly
-            value={command}
-          />
+    <Card
+      className="border border-[var(--app-border)] bg-[var(--app-accent-soft)] p-3"
+      radius="sm"
+    >
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium text-[var(--app-muted)]">Resume command</p>
+          {command === null ? null : (
+            <Button
+              aria-label={`Copy resume command for ${threadId}`}
+              onPress={copyCommand}
+              radius="sm"
+              size="sm"
+              startContent={
+                copyState.kind === "copied" ? (
+                  <Check aria-hidden="true" className="size-4" />
+                ) : (
+                  <Copy aria-hidden="true" className="size-4" />
+                )
+              }
+              variant="flat"
+            >
+              {copyState.kind === "copied" ? "Copied" : "Copy"}
+            </Button>
+          )}
         </div>
-      ) : null}
-    </div>
+        <code className="block overflow-x-auto whitespace-pre rounded bg-white px-3 py-2 text-xs text-[var(--app-ink)]">
+          {command ?? "未记录"}
+        </code>
+        {copyState.kind === "fallback" && command !== null ? (
+          <div className="space-y-2">
+            <p className="text-xs text-danger-700">{copyState.message}</p>
+            <textarea
+              aria-label={`Manual resume command for ${threadId}`}
+              className="min-h-20 w-full resize-y rounded-md border border-danger-200 bg-white px-3 py-2 text-xs text-[var(--app-ink)] outline-none"
+              id={fallbackId}
+              readOnly
+              value={command}
+            />
+          </div>
+        ) : null}
+      </div>
+    </Card>
   )
 }
 

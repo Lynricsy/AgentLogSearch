@@ -1,7 +1,15 @@
 "use client"
 
 import type { AgentSessionDetail } from "@agent-log-search/shared"
-import { Hash, MessageSquareText, Terminal, UserRound } from "lucide-react"
+import { Card, ScrollShadow, Skeleton } from "@heroui/react"
+import {
+  Clock,
+  Hash,
+  MessageSquare,
+  MessageSquareText,
+  Terminal,
+  UserRound,
+} from "lucide-react"
 import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
 
@@ -9,7 +17,7 @@ import { type ApiClient, ApiClientError, apiClient } from "../lib/api"
 import { MessageBubble } from "./message-bubble"
 import { PageHeader } from "./page-header"
 import { ResumeCommandBox } from "./resume-command-box"
-import { EmptyState, ErrorState, LoadingState } from "./state-block"
+import { EmptyState, ErrorState } from "./state-block"
 import { StatusBadge } from "./status-badge"
 
 type SessionDetailWorkspaceProps = {
@@ -71,9 +79,7 @@ export function SessionDetailWorkspace({
 
 function SessionContent({ state }: { readonly state: SessionState }) {
   if (state.kind === "loading") {
-    return (
-      <LoadingState description="Loading session metadata and messages." title="Loading session" />
-    )
+    return <LoadingDetail />
   }
 
   if (state.kind === "error") {
@@ -84,7 +90,12 @@ function SessionContent({ state }: { readonly state: SessionState }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="space-y-3">
+      <ScrollShadow
+        className="h-[calc(100vh-8rem)] space-y-3 pr-2"
+        hideScrollBar
+        orientation="vertical"
+        size={60}
+      >
         {session.messages.length === 0 ? (
           <EmptyState
             description="This session has metadata but no indexed messages."
@@ -93,8 +104,29 @@ function SessionContent({ state }: { readonly state: SessionState }) {
         ) : (
           session.messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
-      </div>
+      </ScrollShadow>
       <SessionMetadata session={session} />
+    </div>
+  )
+}
+
+function LoadingDetail() {
+  return (
+    <div aria-busy="true" aria-live="polite" className="space-y-4">
+      <h2 className="text-sm font-medium">Loading session</h2>
+      <span className="sr-only">Loading session metadata and messages.</span>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="space-y-3">
+          <Skeleton className="h-20 w-full rounded-lg" />
+          <Skeleton className="h-20 w-full rounded-lg" />
+          <Skeleton className="h-20 w-full rounded-lg" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-28 w-full rounded-lg" />
+          <Skeleton className="h-28 w-full rounded-lg" />
+          <Skeleton className="h-28 w-full rounded-lg" />
+        </div>
+      </div>
     </div>
   )
 }
@@ -103,26 +135,64 @@ function SessionMetadata({ session }: { readonly session: AgentSessionDetail }) 
   const updatedAt = session.updatedAt ?? session.lastMessageAt
 
   return (
-    <aside className="space-y-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] p-4">
-      <h2 className="text-sm font-semibold text-[var(--app-ink)]">Metadata</h2>
-      <div className="space-y-3">
-        <MetaLine icon={<UserRound aria-hidden="true" className="size-4" />} label="Agent">
-          {session.agentName}
-        </MetaLine>
-        <MetaLine icon={<Hash aria-hidden="true" className="size-4" />} label="Thread ID">
-          {session.externalThreadId}
-        </MetaLine>
-        <MetaLine icon={<Terminal aria-hidden="true" className="size-4" />} label="CWD">
-          {session.cwd ?? "未记录"}
-        </MetaLine>
-        <MetaLine
-          icon={<MessageSquareText aria-hidden="true" className="size-4" />}
-          label="Messages"
-        >
-          {String(session.messageCount)}
-        </MetaLine>
-        <MetaLine label="Updated">{updatedAt ? formatDateTime(updatedAt) : "未记录"}</MetaLine>
-      </div>
+    <aside className="space-y-3">
+      <Card
+        className="border border-[var(--app-border)] bg-[var(--app-panel)] p-4"
+        radius="lg"
+      >
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--app-muted)]">
+          基本信息
+        </h3>
+        <div className="space-y-3">
+          <MetaLine icon={<UserRound aria-hidden="true" className="size-4" />} label="Agent">
+            {session.agentName}
+          </MetaLine>
+          <MetaLine icon={<Hash aria-hidden="true" className="size-4" />} label="Thread ID">
+            {session.externalThreadId}
+          </MetaLine>
+          <MetaLine icon={<Terminal aria-hidden="true" className="size-4" />} label="CWD">
+            {session.cwd ?? "未记录"}
+          </MetaLine>
+        </div>
+      </Card>
+      <Card
+        className="border border-[var(--app-border)] bg-[var(--app-panel)] p-4"
+        radius="lg"
+      >
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--app-muted)]">
+          时间线
+        </h3>
+        <div className="space-y-3">
+          <MetaLine icon={<Clock aria-hidden="true" className="size-4" />} label="Started">
+            {session.startedAt ? formatDateTime(session.startedAt) : "未记录"}
+          </MetaLine>
+          <MetaLine
+            icon={<MessageSquare aria-hidden="true" className="size-4" />}
+            label="Last Message"
+          >
+            {session.lastMessageAt ? formatDateTime(session.lastMessageAt) : "未记录"}
+          </MetaLine>
+          <MetaLine icon={<Clock aria-hidden="true" className="size-4" />} label="Updated">
+            {updatedAt ? formatDateTime(updatedAt) : "未记录"}
+          </MetaLine>
+        </div>
+      </Card>
+      <Card
+        className="border border-[var(--app-border)] bg-[var(--app-panel)] p-4"
+        radius="lg"
+      >
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--app-muted)]">
+          统计
+        </h3>
+        <div className="space-y-3">
+          <MetaLine
+            icon={<MessageSquareText aria-hidden="true" className="size-4" />}
+            label="Messages"
+          >
+            {String(session.messageCount)}
+          </MetaLine>
+        </div>
+      </Card>
       <ResumeCommandBox command={session.resumeCommand} threadId={session.externalThreadId} />
     </aside>
   )
