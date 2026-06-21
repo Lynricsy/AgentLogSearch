@@ -2,7 +2,7 @@ import { heroui } from "@heroui/react"
 
 // HeroUI 主题配置：light 主题使用暖纸色 + teal 强调色，dark 主题使用深色背景 + 亮 teal
 // @plugin "../hero.ts" 从 globals.css 加载此配置
-export const heroPlugin = heroui({
+export default heroui({
   defaultTheme: "light",
   themes: {
     light: {
