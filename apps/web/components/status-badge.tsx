@@ -20,7 +20,13 @@ export function StatusBadge({
   readonly tone?: StatusTone
 }) {
   return (
-    <Chip className="w-fit" color={toneToColor[tone]} radius="sm" size="sm" variant="flat">
+    <Chip
+      className="w-fit font-medium"
+      color={toneToColor[tone]}
+      radius="sm"
+      size="sm"
+      variant="flat"
+    >
       {children}
     </Chip>
   )

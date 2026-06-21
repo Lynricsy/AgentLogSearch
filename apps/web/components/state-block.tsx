@@ -1,6 +1,6 @@
 "use client"
 
-import { Button, Spinner } from "@heroui/react"
+import { Button, Skeleton } from "@heroui/react"
 import { AlertTriangle, Inbox } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -11,12 +11,14 @@ type BaseStateBlockProps = {
 
 export function LoadingState({ description, title }: BaseStateBlockProps) {
   return (
-    <div className="flex min-h-36 items-center gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-5">
-      <Spinner color="primary" size="sm" />
-      <div className="min-w-0">
-        <h2 className="text-sm font-medium">{title}</h2>
-        <p className="mt-1 text-sm text-[var(--app-muted)]">{description}</p>
-      </div>
+    <div
+      className="flex min-h-36 flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-5"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <h2 className="text-sm font-medium">{title}</h2>
+      <Skeleton className="h-3 w-3/5 rounded-md" />
+      <span className="sr-only">{description}</span>
     </div>
   )
 }

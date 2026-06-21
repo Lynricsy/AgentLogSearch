@@ -1,6 +1,6 @@
 @import "tailwindcss";
-/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS v4 uses @config to load the HeroUI plugin. */
-@config "../tailwind.config.mjs";
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS v4 uses @plugin to load the HeroUI theme plugin. */
+@plugin "../hero.ts";
 
 :root {
   color-scheme: light;
@@ -13,6 +13,23 @@
   --app-accent: #0f766e;
   --app-accent-soft: #d9f3ef;
   --app-warn: #a16207;
+}
+
+:root[class~="dark"] {
+  color-scheme: dark;
+  --app-bg: #0a0a0a;
+  --app-panel: #1a1a1a;
+  --app-panel-muted: #222222;
+  --app-border: #2a2a2a;
+  --app-ink: #ededed;
+  --app-muted: #a1a1aa;
+  --app-accent: #14b8a6;
+  --app-accent-soft: #0a3a36;
+  --app-warn: #eab308;
+}
+
+.dark {
+  color-scheme: dark;
 }
 
 * {
@@ -32,6 +49,11 @@ body {
   margin: 0;
   background:
     linear-gradient(180deg, rgba(255, 253, 248, 0.92), rgba(245, 244, 239, 0.94)), var(--app-bg);
+}
+
+:root[class~="dark"] body {
+  background:
+    linear-gradient(180deg, rgba(26, 26, 26, 0.92), rgba(10, 10, 10, 0.94)), var(--app-bg);
 }
 
 button,
