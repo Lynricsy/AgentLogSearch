@@ -18,13 +18,36 @@ import { PrismaService } from "../database/prisma.service.js"
 import { readExperienceConfig } from "../experiences/experience.config.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { CompatibilityService } from "../repositories/compatibility.service.js"
-import type { RepositoryCompatibilityLevel } from "../repositories/repository.types.js"
+import type {
+  DependencyGroup,
+  DependencyLockfileKind,
+  DependencySnapshot,
+  RepositoryCompatibilityLevel,
+} from "../repositories/repository.types.js"
 import { type RankableExperience, rankExperiences } from "./experience-ranker.js"
 import { extractExperienceQueryFeatures } from "./query-feature-extractor.js"
 
 type ExperienceRecord = Awaited<ReturnType<ExperienceSearchService["readExperiencesByIds"]>>[number]
 type ExperienceBuildStatus = "PENDING" | "PROCESSING" | "READY" | "FAILED"
 type ExperienceEmbeddingStatus = "pending" | "processing" | "ready" | "failed"
+type DependencySnapshotJson = {
+  readonly manifestHash?: unknown
+  readonly packageName?: unknown
+  readonly packageManagers?: unknown
+  readonly lockfiles?: unknown
+  readonly topLevelDependencies?: unknown
+}
+type DependencyLockfileJson = {
+  readonly fileName?: unknown
+  readonly hash?: unknown
+  readonly kind?: unknown
+}
+type DependencyVersionJson = {
+  readonly group?: unknown
+  readonly majorVersion?: unknown
+  readonly name?: unknown
+  readonly versionRange?: unknown
+}
 
 @Injectable()
 export class ExperienceSearchService {
@@ -47,6 +70,7 @@ export class ExperienceSearchService {
             toExperienceSummary(record, rankById.get(record.id.toString())),
             input.repositoryPath,
             record.manifestHash,
+            readDependencySnapshot(record.dependencySnapshot),
           ),
         ),
       )
@@ -224,6 +248,7 @@ export class ExperienceSearchService {
     summary: ExperienceSummary,
     repositoryPath: string | undefined,
     historicalManifestHash: string | null,
+    historicalDependencies: DependencySnapshot | null,
   ): Promise<ExperienceSummary> {
     if (repositoryPath === undefined) {
       return summary
@@ -232,6 +257,7 @@ export class ExperienceSearchService {
       summary,
       repositoryPath,
       historicalManifestHash,
+      historicalDependencies,
     )
     if (compatibility === null) {
       return summary
@@ -252,10 +278,12 @@ export class ExperienceSearchService {
     summary: ExperienceSummary,
     repositoryPath: string,
     historicalManifestHash: string | null,
+    historicalDependencies: DependencySnapshot | null,
   ): Promise<ExperienceCompatibility | null> {
     try {
       const result = await this.compatibility.check({
         currentRepositoryPath: repositoryPath,
+        historicalDependencies,
         historicalManifestHash,
         historicalPaths: summary.pathTokens,
         historicalRepoKey: summary.repoKey,
@@ -302,6 +330,70 @@ export class ExperienceSearchService {
       return null
     }
   }
+}
+
+function readDependencySnapshot(value: unknown): DependencySnapshot | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return null
+  }
+  const input = value as DependencySnapshotJson
+  const { lockfiles, manifestHash, packageManagers, packageName, topLevelDependencies } = input
+  if (
+    typeof manifestHash !== "string" ||
+    (packageName !== null && typeof packageName !== "string") ||
+    !Array.isArray(packageManagers) ||
+    !Array.isArray(lockfiles) ||
+    !Array.isArray(topLevelDependencies)
+  ) {
+    return null
+  }
+  return {
+    lockfiles: lockfiles.filter(isDependencyLockfile),
+    manifestHash,
+    packageManagers: packageManagers.filter(isDependencyLockfileKind),
+    packageName,
+    topLevelDependencies: topLevelDependencies.filter(isDependencyVersion),
+  }
+}
+
+function isDependencyLockfile(value: unknown): value is DependencySnapshot["lockfiles"][number] {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false
+  }
+  const input = value as DependencyLockfileJson
+  return (
+    typeof input.fileName === "string" &&
+    typeof input.hash === "string" &&
+    isDependencyLockfileKind(input.kind)
+  )
+}
+
+function isDependencyVersion(
+  value: unknown,
+): value is DependencySnapshot["topLevelDependencies"][number] {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false
+  }
+  const input = value as DependencyVersionJson
+  return (
+    isDependencyGroup(input.group) &&
+    typeof input.name === "string" &&
+    typeof input.versionRange === "string" &&
+    (input.majorVersion === null || typeof input.majorVersion === "number")
+  )
+}
+
+function isDependencyGroup(value: unknown): value is DependencyGroup {
+  return (
+    value === "dependencies" ||
+    value === "devDependencies" ||
+    value === "optionalDependencies" ||
+    value === "peerDependencies"
+  )
+}
+
+function isDependencyLockfileKind(value: unknown): value is DependencyLockfileKind {
+  return value === "npm" || value === "pnpm" || value === "yarn"
 }
 
 function rankLimit(input: ExperienceSearchRequest): number {

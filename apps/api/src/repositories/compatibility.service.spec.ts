@@ -97,6 +97,25 @@ describe("CompatibilityService", () => {
     expect(result.reasonCodes).toContain("DEPENDENCY_VERSION_UNKNOWN")
   })
 
+  it("marks dependency major changes when historical dependency snapshot is available", async () => {
+    const repo = await createGitRepository()
+    await writeFile(
+      path.join(repo, "package.json"),
+      JSON.stringify({ dependencies: { "@nestjs/common": "^11.1.0" }, name: "compat-test" }),
+    )
+    await commitAll(repo, "add dependency")
+
+    const result = await createService().check({
+      currentRepositoryPath: repo,
+      historicalDependencies: dependencySnapshot("@nestjs/common", 10),
+      historicalManifestHash: "0".repeat(64),
+      historicalPaths: ["package.json"],
+    })
+
+    expect(result.reasonCodes).toContain("DEPENDENCY_MAJOR_CHANGED")
+    expect(result.reasonCodes).not.toContain("LOCKFILE_CHANGED")
+  })
+
   it("marks historical symbols present when Tree-sitter finds them in current files", async () => {
     const repo = await createGitRepository()
     await writeFile(path.join(repo, "src/current.ts"), "export const current = true\n")
@@ -153,6 +172,23 @@ function createSymbolIndexFake(symbolNames: readonly string[]): SymbolIndexServi
       })),
     ),
   } as unknown as SymbolIndexService
+}
+
+function dependencySnapshot(name: string, majorVersion: number) {
+  return {
+    lockfiles: [],
+    manifestHash: "0".repeat(64),
+    packageManagers: [],
+    packageName: "compat-test",
+    topLevelDependencies: [
+      {
+        group: "dependencies" as const,
+        majorVersion,
+        name,
+        versionRange: `^${majorVersion}.0.0`,
+      },
+    ],
+  }
 }
 
 async function createGitRepository(): Promise<string> {

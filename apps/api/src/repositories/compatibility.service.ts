@@ -4,6 +4,7 @@ import { Injectable } from "@nestjs/common"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { GitInspectorService } from "./git-inspector.service.js"
 import type {
+  DependencySnapshot,
   RepositoryCompatibilityInput,
   RepositoryCompatibilityLevel,
   RepositoryCompatibilityResult,
@@ -53,8 +54,10 @@ export class CompatibilityService {
       historicalManifestHash: input.historicalManifestHash ?? null,
       historicalRepoKey: input.historicalRepoKey ?? null,
       historicalSymbols,
+      historicalDependencies: input.historicalDependencies ?? null,
       manifestHash: snapshot.manifestHash,
       repoKey: snapshot.repoKey,
+      dependencies: snapshot.dependencies,
       symbols: currentSymbols,
     })
 
@@ -95,6 +98,8 @@ async function fileStatus(
 
 function scoreCompatibility(input: {
   readonly files: readonly RepositoryFileStatus[]
+  readonly dependencies: DependencySnapshot | null
+  readonly historicalDependencies: DependencySnapshot | null
   readonly historicalManifestHash: string | null
   readonly historicalRepoKey: string | null
   readonly historicalSymbols: readonly string[]
@@ -149,7 +154,13 @@ function scoreCompatibility(input: {
     reasonCodes.push("SYMBOLS_UNKNOWN")
   }
 
-  if (input.historicalManifestHash === null || input.manifestHash === null) {
+  if (
+    input.historicalDependencies !== null &&
+    input.dependencies !== null &&
+    hasMajorDependencyDrift(input.historicalDependencies, input.dependencies)
+  ) {
+    reasonCodes.push("DEPENDENCY_MAJOR_CHANGED")
+  } else if (input.historicalManifestHash === null || input.manifestHash === null) {
     reasonCodes.push("DEPENDENCY_VERSION_UNKNOWN")
   } else if (input.historicalManifestHash === input.manifestHash) {
     reasonCodes.push("DEPENDENCIES_UNCHANGED")
@@ -224,6 +235,26 @@ function symbolIndexPaths(files: readonly RepositoryFileStatus[]): readonly stri
       return []
     }
     return [file.currentPath]
+  })
+}
+
+function hasMajorDependencyDrift(
+  historical: DependencySnapshot,
+  current: DependencySnapshot,
+): boolean {
+  const currentMajorVersions = new Map(
+    current.topLevelDependencies.map((dependency) => [dependency.name, dependency.majorVersion]),
+  )
+  return historical.topLevelDependencies.some((dependency) => {
+    if (dependency.majorVersion === null) {
+      return false
+    }
+    const currentMajor = currentMajorVersions.get(dependency.name)
+    return (
+      currentMajor !== undefined &&
+      currentMajor !== null &&
+      currentMajor !== dependency.majorVersion
+    )
   })
 }
 

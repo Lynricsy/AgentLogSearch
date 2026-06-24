@@ -59,6 +59,20 @@ describe("ExperienceSearchService", () => {
       experiences: [
         experience({
           id: 4n,
+          dependencySnapshot: {
+            lockfiles: [],
+            manifestHash: "1".repeat(64),
+            packageManagers: ["pnpm"],
+            packageName: "api",
+            topLevelDependencies: [
+              {
+                group: "dependencies",
+                majorVersion: 10,
+                name: "@nestjs/common",
+                versionRange: "^10.0.0",
+              },
+            ],
+          },
           manifestHash: "1".repeat(64),
           repoKey: "historical-repo",
           searchText: "TS2322 scanner importer test",
@@ -95,6 +109,17 @@ describe("ExperienceSearchService", () => {
     expect(compatibility.check).toHaveBeenCalledWith(
       expect.objectContaining({
         currentRepositoryPath: "/repo",
+        historicalDependencies: expect.objectContaining({
+          packageName: "api",
+          topLevelDependencies: [
+            {
+              group: "dependencies",
+              majorVersion: 10,
+              name: "@nestjs/common",
+              versionRange: "^10.0.0",
+            },
+          ],
+        }),
         historicalManifestHash: "1".repeat(64),
         historicalPaths: ["apps/api/src/scanner/scanner-importer.ts"],
         historicalRepoKey: "historical-repo",
@@ -353,6 +378,7 @@ function experience(input: Partial<FakeExperience> & { readonly id: bigint }): F
     evidenceReasonCodes: ["HAS_TEST_SUMMARY"],
     repoKey: input.repoKey ?? null,
     cwd: "/repo",
+    dependencySnapshot: input.dependencySnapshot ?? null,
     manifestHash: input.manifestHash ?? null,
     pathTokens: input.pathTokens ?? [],
     symbolTokens: input.symbolTokens ?? [],
@@ -447,6 +473,7 @@ type FakeExperience = {
   readonly evidenceReasonCodes: string[]
   readonly repoKey: string | null
   readonly cwd: string | null
+  readonly dependencySnapshot: unknown
   readonly manifestHash: string | null
   readonly pathTokens: string[]
   readonly symbolTokens: string[]

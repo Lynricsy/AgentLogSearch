@@ -80,6 +80,7 @@ export type RepositoryCompatibilityInput = {
   readonly historicalSymbols?: readonly string[]
   readonly historicalHead?: string | null
   readonly historicalManifestHash?: string | null
+  readonly historicalDependencies?: DependencySnapshot | null
 }
 
 export type RepositoryCompatibilityResult = {
