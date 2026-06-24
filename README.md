@@ -693,6 +693,34 @@ The response risk is `none`, `low`, `medium`, or `high`; matches include the fai
 tokens, score breakdown, and redacted evidence summaries. It intentionally avoids wording such as
 "必然失败" or "不要这样做"; callers should present it as prior-art context, not a hard rule.
 
+## MCP Read-Only Tools
+
+The `apps/mcp` package exposes a stdio MCP server for local clients that need evidence-aware history
+context without direct database access. It calls the HTTP API only, so start the API/Web entrypoint
+first and keep `EXPERIENCE_SEARCH_ENABLED=true`.
+
+```bash
+pnpm --filter mcp build
+AGENT_LOG_SEARCH_API_BASE_URL=http://127.0.0.1:3000/api \
+pnpm --filter mcp dev
+```
+
+The default API base URL is `http://127.0.0.1:3000/api`. Override it with
+`AGENT_LOG_SEARCH_API_BASE_URL` or `AGENT_LOG_SEARCH_API_URL` when using a different local port.
+
+Available tools:
+
+- `search_engineering_history`: wraps `POST /api/experiences/search`.
+- `check_failed_attempt`: wraps `POST /api/experiences/check-failed-attempt`.
+- `get_experience_evidence`: wraps `GET /api/experiences/:id`.
+
+The MCP server intentionally does not expose command execution, file editing, patch application,
+agent resume, or direct database tools. Every tool response includes this disclaimer:
+
+```text
+历史执行结果不等于当前环境中的操作建议。
+```
+
 ## Repository Compatibility
 
 Evidence Edition includes a read-only repository compatibility foundation under
