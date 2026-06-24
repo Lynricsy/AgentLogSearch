@@ -1,16 +1,223 @@
 {
   "schema_version": 2,
-  "active_work_id": null,
+  "active_work_id": "frontend-refinement-7e96d449",
   "works": {
-    "clisearch-system-plan-20260616T085936Z": {
-      "work_id": "clisearch-system-plan-20260616T085936Z",
-      "active_plan": ".omo/plans/clisearch-system-plan.md",
-      "plan_name": "clisearch-system-plan",
-      "session_ids": [
-        "codex:019ecf58-af00-7f52-95fe-e857c9eae78e"
-      ],
+    "frontend-refinement-7e96d449": {
+      "work_id": "frontend-refinement-7e96d449",
+      "active_plan": "/root/Projects/Cources/ComprehensiveProject/CliSearch/.omo/plans/frontend-refinement.md",
+      "plan_name": "frontend-refinement",
       "status": "completed",
-      "worktree_path": null
+      "started_at": "2026-06-21T12:53:34.779Z",
+      "updated_at": "2026-06-21T18:21:39.568Z",
+      "session_ids": [
+        "opencode:ses_115d653b3ffe3JES4rpXcgSNUv"
+      ],
+      "session_origins": {
+        "opencode:ses_115d653b3ffe3JES4rpXcgSNUv": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "DesignSystem: HeroUI 主题配置 + 暗色模式 + ThemeSwitch + 共享组件升级",
+          "session_id": "opencode:ses_115c0cc99ffeMPcCevP371TYmg",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-06-21T13:04:51.618Z",
+          "started_at": "2026-06-21T13:02:45.255Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T13:04:51.618Z",
+          "elapsed_ms": 126363
+        },
+        "todo:2": {
+          "task_key": "todo:2",
+          "task_label": "2",
+          "task_title": "AppShell & Navigation: HeroUI 导航 + active 路由 + 移动端 + 页面过渡",
+          "session_id": "opencode:ses_115b6cec8ffef6wW7000U0uYR9",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-06-21T13:10:47.440Z",
+          "started_at": "2026-06-21T13:09:35.186Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T13:10:47.440Z",
+          "elapsed_ms": 72254
+        },
+        "todo:3": {
+          "task_key": "todo:3",
+          "task_label": "3",
+          "task_title": "SearchPage: HeroUI Input + Accordion 过滤器 + 骨架屏 + 结果卡片动画",
+          "session_id": "opencode:ses_115b1391fffePXNDrV7qQoPkat",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-06-21T13:29:38.483Z",
+          "started_at": "2026-06-21T13:28:33.891Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T13:29:38.483Z",
+          "elapsed_ms": 64592
+        },
+        "todo:4": {
+          "task_key": "todo:4",
+          "task_label": "4",
+          "task_title": "SessionDetailPage: 消息气泡区分 + metadata 分组 + ScrollShadow + resume-command-box 升级",
+          "session_id": "opencode:ses_115a03f90ffeTJnEl1GT42hDY9",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-06-21T13:37:08.895Z",
+          "started_at": "2026-06-21T13:36:22.006Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T13:37:08.895Z",
+          "elapsed_ms": 46889
+        },
+        "todo:5": {
+          "task_key": "todo:5",
+          "task_label": "5",
+          "task_title": "SourcesPage: HeroUI Table + 表单 + Switch（保留单击删除）",
+          "session_id": "opencode:ses_11567bb28ffemo96tvSXn5nDrf",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-06-21T14:31:03.399Z",
+          "status": "completed",
+          "updated_at": "2026-06-21T17:48:47.540Z",
+          "ended_at": "2026-06-21T17:48:47.540Z",
+          "elapsed_ms": 11864141
+        },
+        "todo:6": {
+          "task_key": "todo:6",
+          "task_label": "6",
+          "task_title": "ScanJobsPage: HeroUI Table + 客户端 Tabs 筛选 + 列精简",
+          "session_id": "opencode:ses_114a8fe04ffeTbTaNmU5FFMoeg",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-06-21T17:59:33.667Z",
+          "status": "completed",
+          "updated_at": "2026-06-21T18:09:22.363Z",
+          "ended_at": "2026-06-21T18:09:22.363Z",
+          "elapsed_ms": 588696
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "Plan compliance audit: 验证所有 6 个 todo 的 acceptance criteria 都满足，所有 Scope Must NOT have 约束未被违反。产出 .omo/evidence/f1-compliance.txt",
+          "session_id": "opencode:ses_1149a2aa1ffeNy2wIUPSCEHzjO",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-06-21T18:21:06.626Z",
+          "started_at": "2026-06-21T18:18:02.210Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T18:21:06.626Z",
+          "elapsed_ms": 184416
+        }
+      },
+      "ended_at": "2026-06-21T18:21:39.568Z",
+      "elapsed_ms": 19684789
     }
-  }
+  },
+  "active_plan": "/root/Projects/Cources/ComprehensiveProject/CliSearch/.omo/plans/frontend-refinement.md",
+  "started_at": "2026-06-21T12:53:34.779Z",
+  "status": "completed",
+  "updated_at": "2026-06-21T18:21:39.568Z",
+  "session_ids": [
+    "opencode:ses_115d653b3ffe3JES4rpXcgSNUv"
+  ],
+  "session_origins": {
+    "opencode:ses_115d653b3ffe3JES4rpXcgSNUv": "direct"
+  },
+  "plan_name": "frontend-refinement",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "DesignSystem: HeroUI 主题配置 + 暗色模式 + ThemeSwitch + 共享组件升级",
+      "session_id": "opencode:ses_115c0cc99ffeMPcCevP371TYmg",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-06-21T13:04:51.618Z",
+      "started_at": "2026-06-21T13:02:45.255Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T13:04:51.618Z",
+      "elapsed_ms": 126363
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "AppShell & Navigation: HeroUI 导航 + active 路由 + 移动端 + 页面过渡",
+      "session_id": "opencode:ses_115b6cec8ffef6wW7000U0uYR9",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-06-21T13:10:47.440Z",
+      "started_at": "2026-06-21T13:09:35.186Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T13:10:47.440Z",
+      "elapsed_ms": 72254
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "SearchPage: HeroUI Input + Accordion 过滤器 + 骨架屏 + 结果卡片动画",
+      "session_id": "opencode:ses_115b1391fffePXNDrV7qQoPkat",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-06-21T13:29:38.483Z",
+      "started_at": "2026-06-21T13:28:33.891Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T13:29:38.483Z",
+      "elapsed_ms": 64592
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "SessionDetailPage: 消息气泡区分 + metadata 分组 + ScrollShadow + resume-command-box 升级",
+      "session_id": "opencode:ses_115a03f90ffeTJnEl1GT42hDY9",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-06-21T13:37:08.895Z",
+      "started_at": "2026-06-21T13:36:22.006Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T13:37:08.895Z",
+      "elapsed_ms": 46889
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "SourcesPage: HeroUI Table + 表单 + Switch（保留单击删除）",
+      "session_id": "opencode:ses_11567bb28ffemo96tvSXn5nDrf",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-06-21T14:31:03.399Z",
+      "status": "completed",
+      "updated_at": "2026-06-21T17:48:47.540Z",
+      "ended_at": "2026-06-21T17:48:47.540Z",
+      "elapsed_ms": 11864141
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "ScanJobsPage: HeroUI Table + 客户端 Tabs 筛选 + 列精简",
+      "session_id": "opencode:ses_114a8fe04ffeTbTaNmU5FFMoeg",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-06-21T17:59:33.667Z",
+      "status": "completed",
+      "updated_at": "2026-06-21T18:09:22.363Z",
+      "ended_at": "2026-06-21T18:09:22.363Z",
+      "elapsed_ms": 588696
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan compliance audit: 验证所有 6 个 todo 的 acceptance criteria 都满足，所有 Scope Must NOT have 约束未被违反。产出 .omo/evidence/f1-compliance.txt",
+      "session_id": "opencode:ses_1149a2aa1ffeNy2wIUPSCEHzjO",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-06-21T18:21:06.626Z",
+      "started_at": "2026-06-21T18:18:02.210Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T18:21:06.626Z",
+      "elapsed_ms": 184416
+    }
+  },
+  "agent": "atlas",
+  "ended_at": "2026-06-21T18:21:39.568Z",
+  "elapsed_ms": 19684789
 }

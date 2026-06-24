@@ -4,6 +4,9 @@ AgentLogSearch is a local-first semantic search workspace for Agent CLI conversa
 The target development system runs on localhost, indexes local history files, normalizes sessions
 and messages, stores searchable chunks, and shows copy-only resume commands.
 
+For a codebase-level walkthrough intended for further analysis and planning, see
+[`docs/PROJECT_ANALYSIS.md`](docs/PROJECT_ANALYSIS.md).
+
 ## Status
 
 The project has completed the T1-T19 foundation, scanner/import, scheduler, chunker, mock
@@ -20,7 +23,7 @@ semantic search UI, `/scan-jobs` scan history UI, and `/sessions/[id]` session d
 - Scan job listing API with source metadata, pagination bounds, explicit parse status mapping, and
   truncated list error messages.
 - Synthetic fixture data and validation tests for Codex CLI, Claude Code, Pi Agent, OpenCode,
-  Generic JSONL, Generic JSON, Generic Markdown, and demo-agent sessions.
+  Generic JSONL, Generic JSON, and Generic Markdown sessions.
 - Parser infrastructure for the seven supported history formats, including `ParserRegistry`,
   `file-glob` source reading, and read-only SQLite source reading for OpenCode.
 - Scanner service and importer for manual scans, including sha256 fingerprints, unchanged-file
@@ -30,8 +33,8 @@ semantic search UI, `/scan-jobs` scan history UI, and `/sessions/[id]` session d
 - Scheduler support for periodic due-source scans.
 - Chunker service that creates overlapping message windows with session metadata headers for later
   embedding.
-- Deterministic lexical `mock-1024` embedding provider plus process/rebuild APIs for pending
-  chunks.
+- Configurable embedding provider with deterministic lexical `mock-1024` for tests/dev and Ollama
+  HTTP embeddings for Docker demo, plus process/rebuild APIs for pending chunks.
 - pgvector semantic search API that ranks ready chunks with cosine distance, aggregates chunk
   matches to session-level results, and returns matched chunk snippets.
 - Session detail API that returns session metadata, resume command, and complete messages ordered by
@@ -41,10 +44,18 @@ semantic search UI, `/scan-jobs` scan history UI, and `/sessions/[id]` session d
 - Search UI for submitting semantic queries, applying `agentName`/`cwdKeyword`/`topK`/`sessionLimit`
   filters, opening full session details from result cards, viewing matched chunks, and copying resume
   commands with a clipboard fallback.
+- Search UI loading state now uses result-shaped skeleton cards that mirror the eventual result
+  layout, including matched chunk and resume command areas.
 - Scan jobs UI for loading paginated scan history, showing status/source/start/finish/count columns,
   and keeping long failure text collapsed behind an explicit details action.
 - Session detail UI for loading full messages, rendering role-specific user/assistant/tool/system/
   unknown bubbles, showing metadata, and copying nullable resume commands safely.
+- 搜索结果和会话详情复用后端结构化消息分块，按用户、Agent、思考、工具调用和元数据拆成独立卡片展示，
+  避免前端依赖片段文本猜测消息边界。
+- 前端 UI 已统一中文化，覆盖导航、表单、状态提示、表格、可访问性标签和默认错误提示；
+  后端 API 枚举与请求协议仍保留原始英文值，仅在展示层映射为中文。
+- 前端界面已移除开发期接口路径和本机地址徽章，并在展示层清理导入流水线产生的内部
+  名称片段，例如 `tool_result filtered` 与长时间戳；API 客户端路由和本地代理配置保持不变。
 
 Supported parser types:
 
@@ -56,7 +67,41 @@ Supported parser types:
 - `generic-json`
 - `generic-markdown`
 
-Real OpenAI/Ollama/http embedding providers are still pending.
+OpenAI/http embedding providers are still pending.
+
+## Embedding Model
+
+Docker demo includes a dedicated `embedding-model` container running Ollama for local embeddings. On
+this server, `lscpu`/`free` report a 24-thread AMD Ryzen 9 7950X3D, about 91 GiB RAM, and no detected
+GPU. That is enough headroom for a CPU-only quantized embedding model, so the default model is:
+
+- Model: `qwen3-embedding:8b-q4_K_M`
+- Runtime: Ollama on the compose internal network
+- API provider: `EMBEDDING_PROVIDER=ollama`
+- Vector size used by this project: `EMBEDDING_DIMENSION=1024`
+- Container image: `OLLAMA_IMAGE=ollama/ollama:latest`, override this in `.env` to pin a version.
+
+Qwen3-Embedding is a multilingual text embedding family for retrieval, code retrieval, clustering,
+classification, and bitext mining. The Qwen model card says the 8B model ranks No.1 on the MTEB
+multilingual leaderboard as of June 5, 2025, supports 100+ languages and programming languages, and
+supports user-defined output dimensions from 32 to 4096. Ollama's `/api/embed` endpoint also supports
+a `dimensions` request field, so the API asks Ollama for 1024-dimensional vectors to match the
+existing PostgreSQL `vector(1024)` schema.
+
+The selected Ollama `qwen3-embedding:8b` family tag is about 4.7 GB, which is appropriate for this
+server's memory budget and gives the best quality headroom among the available Qwen3 embedding
+sizes. The first `docker compose --profile demo up -d` downloads the model into the `ollama-data`
+volume via the one-shot `embedding-model-pull` service. Later starts reuse that volume.
+
+For smaller machines, set `EMBEDDING_MODEL=qwen3-embedding:4b-q4_K_M` or
+`EMBEDDING_MODEL=qwen3-embedding:0.6b` before starting the demo, then rebuild embeddings because
+vectors generated by different models should not be mixed.
+
+Sources used for this choice:
+
+- [Qwen3-Embedding-8B model card](https://huggingface.co/Qwen/Qwen3-Embedding-8B)
+- [Ollama qwen3-embedding model page](https://ollama.com/library/qwen3-embedding)
+- [Ollama /api/embed documentation](https://docs.ollama.com/api/embed)
 
 ## Workspace
 
@@ -91,15 +136,16 @@ Use `.env.example` as the committed environment template.
 Local PostgreSQL is provided by Docker Compose:
 
 - Image: `pgvector/pgvector:pg17`
-- Host: `localhost`
-- Port: `5432`
+- Docker demo keeps PostgreSQL on the internal compose network.
+- Source-code development can publish PostgreSQL to `127.0.0.1:${POSTGRES_PORT:-5432}` by adding
+  `docker-compose.dev.yml`.
 - Database/user/password: `agent_log_search`
 - `DATABASE_URL`: copied from `.env.example`
 
-Start the database:
+Start the database for source-code development:
 
 ```bash
-docker compose up -d postgres
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
 ```
 
 Generate the Prisma client and apply migrations:
@@ -127,36 +173,38 @@ source。系统只读扫描历史文件，不会改写 CLI 历史目录。
 ```bash
 cp .env.example .env
 pnpm install
-docker compose up -d postgres
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
 pnpm --filter api prisma:generate
 pnpm --filter api prisma:migrate
 pnpm dev
 ```
 
-`pnpm dev` 会同时启动：
+`pnpm dev` 会同时启动 API 和 Web。浏览器与 curl 默认只访问 Web 端口，Web 再通过
+Next.js route handler 把 `/api/*` 反代到本机 API：
 
-- API: `http://127.0.0.1:3001/api`
-- Web: `http://127.0.0.1:3000`
+- App/API 统一入口：`http://127.0.0.1:3000`
+- API 反代路径：`http://127.0.0.1:3000/api`
+- API 本机监听：`http://127.0.0.1:3001/api`，仅供调试，不是浏览器默认入口
 
 健康检查：
 
 ```bash
-curl http://127.0.0.1:3001/api/health
+curl http://127.0.0.1:3000/api/health
 ```
 
-使用仓库内的脱敏 demo fixture 完成本机端到端搜索。注意：本机 dev 的 `rootPath` 使用
+使用仓库内的脱敏通用 fixture 完成本机端到端搜索。注意：本机 dev 的 `rootPath` 使用
 宿主机绝对路径；把下面命令中的 `$PWD` 保持为仓库根目录即可。
 
 ```bash
 SOURCE_ID=$(
-  curl -sS http://127.0.0.1:3001/api/sources \
+  curl -sS http://127.0.0.1:3000/api/sources \
     -H 'content-type: application/json' \
     -d "{
-      \"name\":\"README demo-agent\",
+      \"name\":\"本地 JSONL 会话样例\",
       \"sourcePreset\":\"generic\",
       \"parserType\":\"generic-jsonl\",
       \"readerType\":\"file-glob\",
-      \"rootPath\":\"$PWD/sample-data/demo-agent\",
+      \"rootPath\":\"$PWD/sample-data/generic\",
       \"fileGlob\":\"**/*.jsonl\",
       \"resumeTemplate\":\"cd {quoted cwd} && codex resume {quoted threadId}\",
       \"enabled\":true,
@@ -167,20 +215,20 @@ SOURCE_ID=$(
     }" | node -pe 'JSON.parse(fs.readFileSync(0, "utf8")).id'
 )
 
-curl -sS -X POST "http://127.0.0.1:3001/api/scan/run/$SOURCE_ID"
-curl -sS -X POST http://127.0.0.1:3001/api/embeddings/process \
+curl -sS -X POST "http://127.0.0.1:3000/api/scan/run/$SOURCE_ID"
+curl -sS -X POST http://127.0.0.1:3000/api/embeddings/process \
   -H 'content-type: application/json' \
   -d "{\"sourceId\":\"$SOURCE_ID\"}"
 
 SEARCH_JSON=$(
-  curl -sS http://127.0.0.1:3001/api/search/semantic \
+  curl -sS http://127.0.0.1:3000/api/search/semantic \
     -H 'content-type: application/json' \
     -d '{"query":"之前修过登录接口 500 的那次","topK":50,"sessionLimit":10}'
 )
 echo "$SEARCH_JSON" | node -pe 'const data = JSON.parse(fs.readFileSync(0, "utf8")); data.records[0]?.threadId'
 
 SESSION_ID=$(echo "$SEARCH_JSON" | node -pe 'const data = JSON.parse(fs.readFileSync(0, "utf8")); data.records[0]?.sessionId')
-curl -sS "http://127.0.0.1:3001/api/sessions/$SESSION_ID"
+curl -sS "http://127.0.0.1:3000/api/sessions/$SESSION_ID"
 ```
 
 期望搜索命中 synthetic thread `abc123`，session detail 返回完整消息和 copy-only
@@ -188,10 +236,11 @@ curl -sS "http://127.0.0.1:3001/api/sessions/$SESSION_ID"
 
 ### 端口覆盖
 
-默认端口是 Postgres `5432`、API `3001`、Web `3000`。如果本机端口冲突：
+默认单入口端口是 Web `3000`。源码开发时，Postgres `5432` 与 API `3001` 只服务本机
+开发链路；如果本机端口冲突：
 
 ```bash
-POSTGRES_PORT=15432 docker compose up -d postgres
+POSTGRES_PORT=15432 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
 DATABASE_URL=postgresql://agent_log_search:agent_log_search@localhost:15432/agent_log_search \
 API_PORT=3101 \
 pnpm --filter api dev
@@ -199,27 +248,31 @@ API_PROXY_TARGET=http://localhost:3101 \
 pnpm --filter web dev -- --port 3100
 ```
 
-Web 默认通过同源 `/api/*` rewrite 访问 API；如果设置
+Web 默认通过同源 `/api/*` 代理路由访问 API；如果设置
 `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3101/api` 让浏览器直连 API，请仍只在本机
-回环地址使用。当前 API CORS 只允许 `http://127.0.0.1:3000` 与
-`http://localhost:3000`。
+回环地址使用。直连模式会绕过单端口反代，仅用于调试。当前 API CORS 只允许
+`http://127.0.0.1:3000` 与 `http://localhost:3000`。
 
 ## Docker Demo
 
-Docker demo 使用只读 fixture，不默认读取真实宿主历史，并且所有宿主端口仍只发布到
-`127.0.0.1`：
+Docker demo 使用只读 fixture，不默认读取真实宿主历史，并且宿主机只发布一个 Web 端口。
+API 和 PostgreSQL 只在 compose 内部网络可达；所有浏览器/API 请求都从 Web 的
+`/api/*` 反代进入后端：
 
 ```bash
 docker compose --profile demo config
 docker compose --profile demo build
 docker compose --profile demo up -d
-curl http://127.0.0.1:3001/api/health
 curl http://127.0.0.1:3000/api/health
 ```
 
+`embedding-model` 也在 `demo` profile 下启动，但不会发布宿主端口。一次性
+`embedding-model-pull` 服务负责把 `EMBEDDING_MODEL` 拉取到 `ollama-data` volume；API
+容器通过 `http://embedding-model:11434/api/embed` 访问 embedding 服务。
+
 在 Docker demo 中创建 source 时，`rootPath` 必须使用容器内路径，例如：
 
-- demo-agent: `/sample-data/demo-agent`
+- Generic fixture: `/sample-data/generic`
 - Codex fixture: `/sample-data/codex`
 - Claude Code fixture: `/sample-data/claude`
 - Pi Agent fixture: `/sample-data/pi-agent`
@@ -229,9 +282,9 @@ curl http://127.0.0.1:3000/api/health
 - Pi Agent 可选 bind mount: `/host-history/pi`
 - OpenCode 可选 bind mount: `/host-history/opencode`
 
-Docker demo 的端到端 API 命令与本机 dev 相同，只需要把 source 创建请求里的
-`rootPath` 改为 `/sample-data/demo-agent`。compose 会始终挂载
-`./sample-data:/sample-data:ro`。
+Docker demo 的端到端 API 命令与本机 dev 相同，都访问
+`http://127.0.0.1:${WEB_PORT:-3000}/api/*`；只需要把 source 创建请求里的 `rootPath`
+改为 `/sample-data/generic`。compose 会始终挂载 `./sample-data:/sample-data:ro`。
 
 可选读取真实宿主历史时，只设置你需要的变量，用绝对宿主路径覆盖对应 bind mount，
 并保持只读：
@@ -247,9 +300,35 @@ docker compose --profile demo up -d
 `./sample-data/opencode`，便于 demo 启动。复制 `.env.example` 后，这些变量默认保持
 注释状态。
 
-API 容器通过 `API_HOST=0.0.0.0` 在容器内监听，Web 容器通过
-`next start --hostname 0.0.0.0` 暴露给宿主端口，且 Web 的
-`API_PROXY_TARGET=http://api:3001` 指向 compose 网络内的 API 服务。
+API 容器通过 `API_HOST=0.0.0.0` 只在容器网络内监听，Web 容器通过
+`next start --hostname 0.0.0.0` 暴露唯一宿主端口，且 Web 的
+`API_PROXY_TARGET=http://api:3001` 指向 compose 网络内的 API 服务。Embedding model 也只
+在 compose 网络内监听。不要给 `api`、`postgres` 或 `embedding-model` 服务增加宿主
+`ports`，除非是在源码开发时显式叠加 `docker-compose.dev.yml` 只发布 Postgres 给本机
+API 使用。
+
+### 真实历史验证记录
+
+2026-06-21 在本机用固定未占用端口 `WEB_PORT=44136` 验证过完整 compose 链路：
+
+- 外部只暴露 `127.0.0.1:44136->3000`，健康检查入口为
+  `http://127.0.0.1:44136/api/health`。
+- `api`、`postgres`、`embedding-model` 都只在 compose 内部网络可达。
+- `embedding-model` 使用 Ollama，已拉取 `qwen3-embedding:8b-q4_K_M` 和
+  `qwen3-embedding:0.6b`，当前 `.env` 使用 `qwen3-embedding:0.6b`。
+- 将宿主真实 Pi Agent 历史目录只读挂载到 `/host-history/pi` 后，创建 `pi-agent` source
+  并扫描成功：29/29 个 JSONL 文件，29 个会话。过滤工具返回前是 731 条消息和 1189 个
+  chunk；识别并丢弃 Pi `toolResult` 工具返回后，保留 391 条 user/assistant 消息和
+  429 个 chunk，扫描耗时约 0.57 秒。数据库中 source 430 的 `tool`、`unknown` 角色消息
+  数为 0，chunk 中也没有 `Tool:`、`toolResult`、`stdout=` 或 `stderr=` 痕迹。
+- CPU-only embedding 实测：`qwen3-embedding:8b-q4_K_M` 连续 3 个批次共 48 个 chunk
+  耗时约 264 秒，约 0.18 chunk/s。`qwen3-embedding:0.6b` 在旧 chunk 上处理 48 个 chunk
+  耗时约 41 秒，约 1.16 chunk/s；在过滤工具返回后的 source 430 上处理 48 个 chunk
+  耗时约 45 秒，约 1.07 chunk/s。全量 429 个 chunk 预计约 6 到 7 分钟。
+- 在已有 48 个 0.6B ready chunk 的情况下，语义搜索
+  `opencode 的 MCP 配置同步到 pi` 命中 source 430 的正确 Pi Agent 会话，HTTP 200，
+  耗时约 0.4 秒，top score 约 0.879。结果保留 assistant 侧工具调用描述，例如
+  `server`、`tool`、`args`、`id`，但不包含工具返回正文。
 
 停止 Docker demo：
 
@@ -284,7 +363,6 @@ personal Agent CLI history. They cover:
 - `sample-data/generic/session-1.jsonl`
 - `sample-data/generic/session-1.json`
 - `sample-data/generic/session-1.md`
-- `sample-data/demo-agent/session-1.jsonl`
 
 Regenerate the OpenCode SQLite fixture from its sanitized SQL source when needed:
 
@@ -316,6 +394,26 @@ unless the request explicitly sets `followSymlinks: true`. Scan guard fields
 `maxFileSizeBytes`, `maxFilesPerScan`, and `followSymlinks` are validated at the API boundary.
 Manual and scheduled scans persist history file fingerprints, imported sessions, messages, pending
 chunks, and scan job counters in PostgreSQL.
+
+Tool result messages are intentionally not persisted or indexed. The retained history keeps user
+messages, assistant responses, and assistant-side tool call descriptions, but drops standalone
+`tool` role messages because those contain raw tool outputs that are often noisy, large, and more
+privacy-sensitive than the LLM decision to call the tool.
+
+The first-class parsers cover both fixture-era and current local formats. Codex supports the newer
+`session_meta` plus `response_item`/`event_msg` rollout JSONL records, and OpenCode supports both
+legacy `sessions/messages` SQLite tables and current `session/message/part` tables. Codex tool
+calls are compacted to call metadata such as tool name, call id, command, workdir, short arguments,
+or touched file names; duplicated tool end events, stdout, stderr, raw result payloads, and OpenCode
+`state.output` are not retained for search. Claude Code `message.role = "user"` records whose
+content is `tool_result` are normalized to `tool` and dropped by the importer.
+
+Session titles are resolved during parsing, before sessions are imported into PostgreSQL. Native
+title-like fields are preferred: OpenCode reads the SQLite `session.title`, Claude Code reads the
+current JSONL `slug`, and older JSONL formats can still use `title`, `summary`, or `name` when those
+fields exist. Current Codex and Pi Agent JSONL files do not consistently store a dedicated session
+title, so the parser derives a display title from the first real user request while ignoring IDE
+context wrappers and synthetic agent instructions.
 
 ## Manual Scan API
 
@@ -354,17 +452,26 @@ fingerprints include the database file plus optional `-wal` and `-shm` sidecars,
 SQLite read-only.
 
 Imported sessions are chunked before embedding. Empty messages are ignored, normal chunks contain up
-to eight messages, adjacent chunks keep a two-message overlap, long messages become standalone
-chunks, and each chunk text starts with `Agent:`, `CWD:`, and `Thread:` headers. New chunks are
-stored with `embeddingStatus` set to `pending`; the embeddings process API consumes those pending
-chunks with the local deterministic mock provider.
+to eight retained messages, adjacent chunks keep a two-message overlap, and long messages become
+standalone chunks. Standalone `tool` role messages are skipped before chunking, so raw tool output is
+not embedded; assistant messages that describe the tool call remain searchable. Very long single
+messages are split with a line/natural-boundary-first algorithm, using a hard size cap as fallback
+and iterating on Unicode character boundaries so surrogate pairs are not broken. Tiny trailing
+fragments are avoided when a safe earlier split point can keep the tail useful. Each chunk text
+starts with `Agent:`, `CWD:`, and `Thread:` headers. New chunks are stored with `embeddingStatus`
+set to `pending`; the API container's embedding worker automatically consumes those pending chunks
+with the configured embedding provider.
 
 ## Embeddings API
 
-The API exposes local mock embedding job endpoints:
+The API exposes embedding job endpoints:
 
-- `POST /api/embeddings/process`: creates a `process` embedding job and processes a small locked
-  batch of `pending` or `failed` chunks.
+- Background worker: when `EMBEDDING_WORKER_ENABLED=true`, the API container periodically checks for
+  `pending` or `failed` chunks and processes one small locked batch per tick. Worker-created jobs are
+  recorded with `requestedBy=scheduler`.
+- `POST /api/embeddings/process`: creates a manual `process` embedding job and processes a small
+  locked batch of `pending` or `failed` chunks. This is mainly useful for debugging or one-off runs;
+  normal Docker demo operation does not require calling it by hand.
 - `POST /api/embeddings/rebuild`: creates a `rebuild` embedding job and resets `ready` or `failed`
   chunks to `pending`; accepts optional `sourceId` to scope the rebuild.
 
@@ -394,18 +501,29 @@ The response is an embedding job summary:
 }
 ```
 
-The first implementation only includes the deterministic lexical `mock-1024` provider. It validates
-the provider and database vector dimensions at startup, writes `vector(1024)` values through raw
-PostgreSQL via `PgService`, and uses row locks with `FOR UPDATE SKIP LOCKED` to avoid duplicate
-batch processing. Real OpenAI, Ollama, and HTTP embedding providers are intentionally left as future
-provider implementations.
+The embedding pipeline supports the deterministic lexical `mock-1024` provider for tests/dev and an
+Ollama provider for Docker demo. It validates the provider and database vector dimensions at startup,
+writes `vector(1024)` values through raw PostgreSQL via `PgService`, and uses row locks with
+`FOR UPDATE SKIP LOCKED` to avoid duplicate batch processing. OpenAI and generic HTTP embedding
+providers are intentionally left as future provider implementations.
+
+Embedding worker knobs:
+
+- `EMBEDDING_WORKER_ENABLED`: defaults to `true` outside tests and is explicitly enabled in Docker
+  demo.
+- `EMBEDDING_WORKER_INTERVAL_MS`: default `5000`. The worker waits this long between batch attempts.
+- `EMBEDDING_WORKER_SOURCE_ID`: optional source id scope. Empty means all sources.
+- `EMBEDDING_WORKER_STALE_PROCESSING_MS`: default `900000`. Chunks stuck in `processing` longer than
+  this are reset to `pending` before the next batch, so an API restart does not leave them stranded.
 
 ## Semantic Search API
 
 The API exposes semantic search under `POST /api/search/semantic`. The endpoint embeds the query
-with the local `mock-1024` provider, searches only chunks whose embedding status is `ready` and whose
-vector is present, ranks chunk candidates with pgvector cosine distance (`<=>`) through raw
-PostgreSQL, and aggregates the top chunk hits into session-level records.
+with the configured embedding provider, searches only chunks whose embedding status is `ready` and
+whose vector is present, ranks chunk candidates with pgvector cosine distance (`<=>`) through raw
+PostgreSQL, and aggregates the top chunk hits into session-level records. Use the same provider/model
+for indexing and querying; after changing `EMBEDDING_MODEL`, run the rebuild/process flow before
+trusting search results.
 
 Request body:
 
@@ -540,10 +658,10 @@ pnpm --filter api dev
 ```
 
 The API listens on `API_HOST`/`API_PORT` from `.env.example` and defaults to
-`127.0.0.1:3001`. Health check:
+`127.0.0.1:3001`. In normal development, call it through the Web reverse proxy:
 
 ```bash
-curl http://127.0.0.1:3001/api/health
+curl http://127.0.0.1:3000/api/health
 ```
 
 Start the web app:
@@ -561,14 +679,14 @@ pnpm dev
 Web 的 `dev` 和 `start` 脚本都会显式绑定 `127.0.0.1`，因此默认只监听本机回环地址。
 Web 客户端默认请求相对路径 `/api`，Next.js rewrite 会把 `/api/*` 代理到
 `API_PROXY_TARGET`，未设置时默认是 `http://localhost:3001`。在 Web 也只绑定回环地址
-的前提下，同源 `/api` rewrite 只服务本机访问，不会把本地 API 暴露到外部网络。只有
-本地开发需要浏览器直连 API 时，才设置可选的
+的前提下，同源 `/api` rewrite 只服务本机访问；Docker demo 也只发布 Web 端口。源码
+开发若不启动 Ollama，可把 `.env` 中 `EMBEDDING_PROVIDER` 改成 `mock`。只有本地调试
+需要浏览器直连 API 时，才设置可选的
 `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3001/api`；直连模式需要 API CORS 允许对应
-本机 Web 源。
+本机 Web 源，并且会绕过单端口反代。
 
-`.env.example` 覆盖本地运行所需的 API/Web/Postgres 变量、scanner scheduler 变量和
-Docker 可选历史目录 bind mount 变量。Embedding 当前固定使用代码内置
-`mock-1024` provider 与 `vector(1024)` schema；`.env.example` 中的 embedding 字段是
-文档对齐项，不会切换 provider。路径限制是 source 请求字段：
-`scanIntervalSeconds`、`maxFileSizeBytes`、`maxFilesPerScan`、`followSymlinks`；当前不是
-全局运行时 env 开关。
+`.env.example` 覆盖本地运行所需的 API/Web/Postgres 变量、scanner scheduler 变量、
+embedding provider 变量和 Docker 可选历史目录 bind mount 变量。源码开发默认
+`EMBEDDING_PROVIDER=mock`，Docker demo 会在 compose 内覆盖为 `ollama`。路径限制是 source
+请求字段：`scanIntervalSeconds`、`maxFileSizeBytes`、`maxFilesPerScan`、`followSymlinks`；
+当前不是全局运行时 env 开关。
