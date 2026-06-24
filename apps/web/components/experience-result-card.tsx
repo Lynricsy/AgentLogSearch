@@ -91,7 +91,7 @@ function CompatibilityPanel({
     <div className="mt-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-muted)]/35 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <GitCompare aria-hidden="true" className="size-4 text-[var(--app-muted)]" />
-        <span className="text-sm font-medium text-[var(--app-ink)]">仓库兼容性</span>
+        <span className="text-sm font-medium text-[var(--app-ink)]">当前状态匹配</span>
         <StatusBadge>{compatibilityLevelLabel(compatibility.level)}</StatusBadge>
         <span className="text-xs text-[var(--app-muted)]">
           评分 {formatPercent(compatibility.score)} · 覆盖 {formatPercent(compatibility.coverage)}
@@ -99,7 +99,7 @@ function CompatibilityPanel({
       </div>
       <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">{compatibility.disclaimer}</p>
       <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem]">
-        <TokenBlock label="兼容性原因" tokens={compatibility.reasonCodes} />
+        <TokenBlock label="匹配原因" tokens={compatibility.reasonCodes.map(reasonCodeLabel)} />
         <div className="text-xs leading-5 text-[var(--app-muted)]">
           <div>文件 {compatibility.files.length} 个</div>
           <div>重命名 {renamedCount} 个</div>
@@ -174,5 +174,44 @@ function compatibilityLevelLabel(level: ExperienceCompatibility["level"]): strin
       return "可能过期"
     case "STALE":
       return "已过期"
+  }
+}
+
+function reasonCodeLabel(code: string): string {
+  switch (code) {
+    case "REPO_IDENTITY_MATCH":
+      return "仓库身份一致"
+    case "REPO_IDENTITY_MISMATCH":
+      return "仓库身份不一致"
+    case "REPO_IDENTITY_UNKNOWN":
+      return "仓库身份未知"
+    case "FILES_PRESENT":
+      return "相关文件仍存在"
+    case "RENAMES_DETECTED":
+      return "检测到文件重命名"
+    case "SOME_FILES_MISSING":
+      return "部分相关文件缺失"
+    case "ALL_FILES_MISSING":
+      return "所有相关文件缺失"
+    case "FILES_UNKNOWN":
+      return "相关文件未知"
+    case "SYMBOL_STILL_EXISTS":
+      return "历史符号仍存在"
+    case "SYMBOL_MISSING":
+      return "历史符号缺失"
+    case "SYMBOLS_UNKNOWN":
+      return "历史符号未知"
+    case "DEPENDENCIES_UNCHANGED":
+      return "依赖快照未变化"
+    case "LOCKFILE_CHANGED":
+      return "锁文件发生变化"
+    case "DEPENDENCY_VERSION_UNKNOWN":
+      return "依赖版本未知"
+    case "DEPENDENCY_MAJOR_CHANGED":
+      return "依赖主版本变化"
+    case "COMPATIBILITY_COVERAGE_LOW":
+      return "匹配证据覆盖不足"
+    default:
+      return code
   }
 }

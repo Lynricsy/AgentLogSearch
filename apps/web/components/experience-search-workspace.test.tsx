@@ -44,7 +44,7 @@ describe("ExperienceSearchWorkspace", () => {
                   },
                 ],
                 level: "STALE",
-                reasonCodes: ["ALL_FILES_MISSING"],
+                reasonCodes: ["ALL_FILES_MISSING", "SYMBOL_MISSING", "LOCKFILE_CHANGED"],
                 score: 0.2,
                 snapshot: {
                   branch: "main",
@@ -89,8 +89,11 @@ describe("ExperienceSearchWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "搜索经验" }))
 
     expect(await screen.findByText("修复 scanner 导入")).toBeVisible()
-    expect(screen.getByText("仓库兼容性")).toBeVisible()
+    expect(screen.getByText("当前状态匹配")).toBeVisible()
     expect(screen.getByText("已过期")).toBeVisible()
+    expect(screen.getByText("所有相关文件缺失")).toBeVisible()
+    expect(screen.getByText("历史符号缺失")).toBeVisible()
+    expect(screen.getByText("锁文件发生变化")).toBeVisible()
     expect(screen.getByText("包 api")).toBeVisible()
     expect(screen.getByText("包管理器 pnpm")).toBeVisible()
     expect(screen.getByText("依赖 42 个")).toBeVisible()
