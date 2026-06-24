@@ -267,6 +267,22 @@ export class ExperienceSearchService {
         snapshot: {
           branch: result.snapshot.branch,
           capturedAt: result.snapshot.capturedAt,
+          dependencies:
+            result.snapshot.dependencies === null
+              ? null
+              : {
+                  lockfiles: result.snapshot.dependencies.lockfiles.map((lockfile) => ({
+                    fileName: lockfile.fileName,
+                    kind: lockfile.kind,
+                  })),
+                  packageManagers: [...result.snapshot.dependencies.packageManagers],
+                  packageName: result.snapshot.dependencies.packageName,
+                  topLevelDependencyCount: result.snapshot.dependencies.topLevelDependencies.length,
+                  unknownMajorVersionCount:
+                    result.snapshot.dependencies.topLevelDependencies.filter(
+                      (dependency) => dependency.majorVersion === null,
+                    ).length,
+                },
           dirtyHash: result.snapshot.dirtyHash,
           gitHead: result.snapshot.gitHead,
           manifestHash: result.snapshot.manifestHash,

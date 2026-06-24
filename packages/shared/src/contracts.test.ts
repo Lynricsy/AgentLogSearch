@@ -221,6 +221,13 @@ describe("shared domain contracts", () => {
         snapshot: {
           branch: "main",
           capturedAt: timestamp,
+          dependencies: {
+            lockfiles: [{ fileName: "pnpm-lock.yaml", kind: "pnpm" }],
+            packageManagers: ["pnpm"],
+            packageName: "api",
+            topLevelDependencyCount: 42,
+            unknownMajorVersionCount: 3,
+          },
           dirtyHash: "clean",
           gitHead: "a".repeat(40),
           manifestHash: null,

@@ -86,6 +86,7 @@ function CompatibilityPanel({
 }) {
   const renamedCount = compatibility.files.filter((file) => file.status === "renamed").length
   const missingCount = compatibility.files.filter((file) => file.status === "missing").length
+  const dependencies = compatibility.snapshot.dependencies
   return (
     <div className="mt-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-muted)]/35 p-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -103,6 +104,17 @@ function CompatibilityPanel({
           <div>文件 {compatibility.files.length} 个</div>
           <div>重命名 {renamedCount} 个</div>
           <div>缺失 {missingCount} 个</div>
+          {dependencies ? (
+            <>
+              <div>包 {dependencies.packageName ?? "未记录"}</div>
+              <div>包管理器 {joinOrFallback(dependencies.packageManagers)}</div>
+              <div>锁文件 {dependencies.lockfiles.length} 个</div>
+              <div>依赖 {dependencies.topLevelDependencyCount} 个</div>
+              <div>未知主版本 {dependencies.unknownMajorVersionCount} 个</div>
+            </>
+          ) : (
+            <div>依赖 未记录</div>
+          )}
         </div>
       </div>
     </div>
@@ -144,6 +156,10 @@ function lastCommand(experience: ExperienceSummary): string | null {
       .flatMap((attempt) => attempt.commandFamilies)
       .find((command) => command.trim().length > 0) ?? null
   )
+}
+
+function joinOrFallback(values: readonly string[]): string {
+  return values.length === 0 ? "未记录" : values.join(", ")
 }
 
 function compatibilityLevelLabel(level: ExperienceCompatibility["level"]): string {

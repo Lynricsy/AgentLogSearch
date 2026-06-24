@@ -318,6 +318,7 @@ function createCompatibilityFake(input: Partial<FakeCompatibilityResult> = {}) {
       snapshot: input.snapshot ?? {
         branch: "main",
         capturedAt: "2026-01-01T00:00:00.000Z",
+        dependencies: null,
         dirtyHash: "clean",
         gitHead: "a".repeat(40),
         manifestHash: null,

@@ -64,6 +64,21 @@ export const experienceCompatibilitySnapshotSchema = z.object({
   branch: z.string().nullable(),
   dirtyHash: z.string().min(1),
   manifestHash: z.string().nullable(),
+  dependencies: z
+    .object({
+      packageName: z.string().min(1).nullable(),
+      packageManagers: z.array(z.enum(["npm", "pnpm", "yarn"])),
+      lockfiles: z.array(
+        z.object({
+          fileName: z.string().min(1),
+          kind: z.enum(["npm", "pnpm", "yarn"]),
+        }),
+      ),
+      topLevelDependencyCount: z.number().int().min(0),
+      unknownMajorVersionCount: z.number().int().min(0),
+    })
+    .nullable()
+    .optional(),
   capturedAt: z.string().datetime(),
   quality: repositorySnapshotQualitySchema,
 })

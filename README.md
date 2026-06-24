@@ -649,8 +649,8 @@ return full raw tool output.
 When `repositoryPath` is provided, search results also include a static repository compatibility
 block. The API compares the historical experience paths and repo key against the current Git tree,
 adds a `compatibilityFactor` to the score breakdown, and reranks the top candidates conservatively.
-This signal is intentionally limited to existence/rename/repo identity context and always carries
-the compatibility disclaimer from the Repository Compatibility section.
+This signal is intentionally limited to existence/rename/repo identity/dependency snapshot context
+and always carries the compatibility disclaimer from the Repository Compatibility section.
 
 `GET /api/experiences/:id` returns one experience with attempts, source session metadata, and
 redacted evidence event summaries. Invalid or missing ids return the standard error envelope with
@@ -700,6 +700,12 @@ Evidence Edition includes a read-only repository compatibility foundation under
 derives a credential-free `repoKey`, captures the current Git snapshot, and compares historical
 experience file paths with the current tree. It can distinguish deleted files from Git renames when
 the historical commit is available.
+
+The compatibility snapshot also includes a summarized Node dependency signal when manifest files are
+present. It reads `package.json`, `pnpm-lock.yaml`, `package-lock.json`, and `yarn.lock`, exposes the
+package name, detected package managers, lockfile count, top-level dependency count, and unknown
+major-version count, and keeps `manifestHash` as the stable change detector. The API does not expose
+raw lockfile contents or full dependency maps.
 
 Compatibility is static context, not patch validation. Any UI or automation that presents this data
 must keep the disclaimer visible:

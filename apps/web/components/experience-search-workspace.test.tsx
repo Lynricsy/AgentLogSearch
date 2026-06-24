@@ -49,6 +49,13 @@ describe("ExperienceSearchWorkspace", () => {
                 snapshot: {
                   branch: "main",
                   capturedAt: timestamp,
+                  dependencies: {
+                    lockfiles: [{ fileName: "pnpm-lock.yaml", kind: "pnpm" }],
+                    packageManagers: ["pnpm"],
+                    packageName: "api",
+                    topLevelDependencyCount: 42,
+                    unknownMajorVersionCount: 3,
+                  },
                   dirtyHash: "clean",
                   gitHead: "a".repeat(40),
                   manifestHash: null,
@@ -84,6 +91,9 @@ describe("ExperienceSearchWorkspace", () => {
     expect(await screen.findByText("修复 scanner 导入")).toBeVisible()
     expect(screen.getByText("仓库兼容性")).toBeVisible()
     expect(screen.getByText("已过期")).toBeVisible()
+    expect(screen.getByText("包 api")).toBeVisible()
+    expect(screen.getByText("包管理器 pnpm")).toBeVisible()
+    expect(screen.getByText("依赖 42 个")).toBeVisible()
     expect(
       screen.getByText("该结果只表示相关工程对象仍然存在或相似，不代表历史 patch 可以直接应用。"),
     ).toBeVisible()
