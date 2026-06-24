@@ -705,6 +705,22 @@ AGENT_LOG_SEARCH_API_BASE_URL=http://127.0.0.1:3000/api \
 pnpm --filter mcp dev
 ```
 
+After building, MCP clients can run the compiled stdio entrypoint:
+
+```json
+{
+  "mcpServers": {
+    "agent-log-search": {
+      "command": "node",
+      "args": ["/absolute/path/to/CliSearch/apps/mcp/dist/main.js"],
+      "env": {
+        "AGENT_LOG_SEARCH_API_BASE_URL": "http://127.0.0.1:3000/api"
+      }
+    }
+  }
+}
+```
+
 The default API base URL is `http://127.0.0.1:3000/api`. Override it with
 `AGENT_LOG_SEARCH_API_BASE_URL` or `AGENT_LOG_SEARCH_API_URL` when using a different local port.
 
@@ -719,6 +735,13 @@ agent resume, or direct database tools. Every tool response includes this discla
 
 ```text
 历史执行结果不等于当前环境中的操作建议。
+```
+
+Validate the stdio entrypoint without a running API by listing tools from the built server:
+
+```bash
+pnpm --filter mcp build
+pnpm --filter mcp smoke:stdio
 ```
 
 ## Repository Compatibility
