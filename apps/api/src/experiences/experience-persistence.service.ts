@@ -12,8 +12,9 @@ import {
   EXPERIENCE_BUILDER_VERSION,
   EXPERIENCE_SEARCH_DOCUMENT_VERSION,
 } from "../pipeline-versions.js"
+import type { RepositorySnapshot } from "../repositories/repository.types.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
-import { RepositoryLocatorService } from "../repositories/repository-locator.service.js"
+import { RepositorySnapshotService } from "../repositories/repository-snapshot.service.js"
 import type { BuiltExperienceDraft, ExperienceTraceEvent } from "./experience.types.js"
 import { buildExperiences } from "./experience-builder.js"
 
@@ -25,7 +26,7 @@ export class ExperienceRevisionChangedError extends Error {
 export class ExperiencePersistenceService {
   public constructor(
     private readonly prisma: PrismaService,
-    private readonly repositories: RepositoryLocatorService,
+    private readonly repositories: RepositorySnapshotService,
   ) {}
 
   public async buildAndPersistSession(sessionId: bigint, claimedRevision: number): Promise<number> {
@@ -58,13 +59,19 @@ export class ExperiencePersistenceService {
       throw new ExperienceRevisionChangedError("experience source revision changed")
     }
     const events = session.traceEvents.map(toExperienceTraceEvent)
+    const repository = await this.resolveRepositorySnapshot(session.cwd)
     const builtExperiences = buildExperiences({
       events,
       sourceRevision: claimedRevision,
       cwd: session.cwd,
-      repoKey: await this.resolveRepoKey(session.cwd),
+      repoKey: repository?.repoKey ?? null,
     })
-    await this.replaceExperiences(sessionId, claimedRevision, builtExperiences)
+    await this.replaceExperiences(
+      sessionId,
+      claimedRevision,
+      builtExperiences,
+      repository?.manifestHash ?? null,
+    )
     return builtExperiences.length
   }
 
@@ -79,18 +86,18 @@ export class ExperiencePersistenceService {
     })
   }
 
-  private async resolveRepoKey(cwd: string | null): Promise<string | null> {
+  private async resolveRepositorySnapshot(cwd: string | null): Promise<RepositorySnapshot | null> {
     if (cwd === null) {
       return null
     }
-    const repository = await this.repositories.locate(cwd)
-    return repository?.repoKey ?? null
+    return this.repositories.snapshot(cwd)
   }
 
   private async replaceExperiences(
     sessionId: bigint,
     claimedRevision: number,
     builtExperiences: readonly BuiltExperienceDraft[],
+    manifestHash: string | null,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const current = await tx.agentSession.findUnique({
@@ -108,7 +115,7 @@ export class ExperiencePersistenceService {
       const eventIds = await readTraceEventIds(tx, sessionId)
       for (const experience of builtExperiences) {
         const created = await tx.agentExperience.create({
-          data: toExperienceCreate(sessionId, experience),
+          data: toExperienceCreate(sessionId, experience, manifestHash),
         })
         for (const attempt of experience.attempts) {
           const createdAttempt = await tx.agentAttempt.create({
@@ -161,7 +168,11 @@ export class ExperiencePersistenceService {
   }
 }
 
-function toExperienceCreate(sessionId: bigint, experience: BuiltExperienceDraft) {
+function toExperienceCreate(
+  sessionId: bigint,
+  experience: BuiltExperienceDraft,
+  manifestHash: string | null,
+) {
   return {
     sessionId,
     episodeIndex: experience.episodeIndex,
@@ -178,6 +189,7 @@ function toExperienceCreate(sessionId: bigint, experience: BuiltExperienceDraft)
     evidenceReasonCodes: [...experience.evidenceReasonCodes],
     repoKey: experience.repoKey,
     cwd: experience.cwd,
+    manifestHash,
     pathTokens: [...experience.pathTokens],
     symbolTokens: [...experience.symbolTokens],
     errorSignatures: [...experience.errorSignatures],

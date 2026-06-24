@@ -59,6 +59,7 @@ describe("ExperienceSearchService", () => {
       experiences: [
         experience({
           id: 4n,
+          manifestHash: "1".repeat(64),
           repoKey: "historical-repo",
           searchText: "TS2322 scanner importer test",
           pathTokens: ["apps/api/src/scanner/scanner-importer.ts"],
@@ -94,6 +95,7 @@ describe("ExperienceSearchService", () => {
     expect(compatibility.check).toHaveBeenCalledWith(
       expect.objectContaining({
         currentRepositoryPath: "/repo",
+        historicalManifestHash: "1".repeat(64),
         historicalPaths: ["apps/api/src/scanner/scanner-importer.ts"],
         historicalRepoKey: "historical-repo",
         historicalSymbols: ["ScannerImporter"],
@@ -351,6 +353,7 @@ function experience(input: Partial<FakeExperience> & { readonly id: bigint }): F
     evidenceReasonCodes: ["HAS_TEST_SUMMARY"],
     repoKey: input.repoKey ?? null,
     cwd: "/repo",
+    manifestHash: input.manifestHash ?? null,
     pathTokens: input.pathTokens ?? [],
     symbolTokens: input.symbolTokens ?? [],
     errorSignatures: [],
@@ -444,6 +447,7 @@ type FakeExperience = {
   readonly evidenceReasonCodes: string[]
   readonly repoKey: string | null
   readonly cwd: string | null
+  readonly manifestHash: string | null
   readonly pathTokens: string[]
   readonly symbolTokens: string[]
   readonly errorSignatures: string[]

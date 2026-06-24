@@ -397,6 +397,7 @@ model AgentExperience {
   evidenceReasonCodes    String[]          @default([]) @map("evidence_reason_codes")
   repoKey                String?           @map("repo_key") @db.VarChar(200)
   cwd                    String?
+  manifestHash           String?           @map("manifest_hash") @db.VarChar(64)
   pathTokens             String[]          @default([]) @map("path_tokens")
   symbolTokens           String[]          @default([]) @map("symbol_tokens")
   errorSignatures        String[]          @default([]) @map("error_signatures")

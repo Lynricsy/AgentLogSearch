@@ -46,6 +46,7 @@ export class ExperienceSearchService {
           this.withCompatibility(
             toExperienceSummary(record, rankById.get(record.id.toString())),
             input.repositoryPath,
+            record.manifestHash,
           ),
         ),
       )
@@ -222,11 +223,16 @@ export class ExperienceSearchService {
   private async withCompatibility(
     summary: ExperienceSummary,
     repositoryPath: string | undefined,
+    historicalManifestHash: string | null,
   ): Promise<ExperienceSummary> {
     if (repositoryPath === undefined) {
       return summary
     }
-    const compatibility = await this.safeCompatibility(summary, repositoryPath)
+    const compatibility = await this.safeCompatibility(
+      summary,
+      repositoryPath,
+      historicalManifestHash,
+    )
     if (compatibility === null) {
       return summary
     }
@@ -245,10 +251,12 @@ export class ExperienceSearchService {
   private async safeCompatibility(
     summary: ExperienceSummary,
     repositoryPath: string,
+    historicalManifestHash: string | null,
   ): Promise<ExperienceCompatibility | null> {
     try {
       const result = await this.compatibility.check({
         currentRepositoryPath: repositoryPath,
+        historicalManifestHash,
         historicalPaths: summary.pathTokens,
         historicalRepoKey: summary.repoKey,
         historicalSymbols: summary.symbolTokens,

@@ -707,6 +707,10 @@ package name, detected package managers, lockfile count, top-level dependency co
 major-version count, and keeps `manifestHash` as the stable change detector. The API does not expose
 raw lockfile contents or full dependency maps.
 
+Built experience records store a nullable build-time `manifestHash`. When a later search provides
+`repositoryPath`, compatibility checks can compare that historical hash with the current repository
+snapshot and surface dependency drift as warning reason codes.
+
 Compatibility is static context, not patch validation. Any UI or automation that presents this data
 must keep the disclaimer visible:
 
