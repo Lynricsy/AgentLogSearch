@@ -9,6 +9,7 @@ export function retainHistoryMessages(session: ParsedSession): ParsedSession {
   return {
     ...session,
     messages,
+    traceEvents: session.traceEvents,
     updatedAt: latestMessageCreatedAt(messages) ?? session.updatedAt,
   }
 }

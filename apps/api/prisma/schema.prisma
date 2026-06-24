@@ -91,6 +91,80 @@ enum EmbeddingJobRequester {
   @@map("embedding_job_requester")
 }
 
+enum TraceEventKind {
+  USER_MESSAGE
+  ASSISTANT_MESSAGE
+  TOOL_EXECUTION
+  SYSTEM
+
+  @@map("trace_event_kind")
+}
+
+enum OperationKind {
+  NONE
+  SHELL
+  FILE_READ
+  FILE_WRITE
+  FILE_PATCH
+  FILE_DELETE
+  SEARCH
+  TEST
+  BUILD
+  TYPECHECK
+  LINT
+  GIT
+  PACKAGE_CHANGE
+  OTHER
+
+  @@map("operation_kind")
+}
+
+enum EvidenceQuality {
+  EXACT
+  PARSED
+  INFERRED
+  UNKNOWN
+
+  @@map("evidence_quality")
+}
+
+enum ExperienceBuildStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+
+  @@map("experience_build_status")
+}
+
+enum ExperienceOutcome {
+  SUCCEEDED
+  FAILED
+  PARTIAL
+  UNKNOWN
+
+  @@map("experience_outcome")
+}
+
+enum AttemptOutcome {
+  SUCCEEDED
+  FAILED
+  PARTIAL
+  UNVERIFIED
+
+  @@map("attempt_outcome")
+}
+
+enum AttemptEvidenceRole {
+  MUTATION
+  VALIDATION
+  OBSERVATION_BEFORE
+  OBSERVATION_AFTER
+  CONTEXT
+
+  @@map("attempt_evidence_role")
+}
+
 model AgentSource {
   id                  BigInt           @id @default(autoincrement())
   name                String           @db.VarChar(100)
@@ -117,17 +191,19 @@ model AgentSource {
 }
 
 model HistoryFile {
-  id            BigInt      @id @default(autoincrement())
-  sourceId      BigInt      @map("source_id")
-  filePath      String      @map("file_path")
-  fileHash      String?     @map("file_hash") @db.VarChar(128)
-  fileSize      BigInt      @default(0) @map("file_size")
-  modifiedAt    DateTime?   @map("modified_at")
-  lastScannedAt DateTime?   @map("last_scanned_at")
-  parseStatus   ParseStatus @default(pending) @map("parse_status")
-  errorMessage  String?     @map("error_message")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  id                       BigInt      @id @default(autoincrement())
+  sourceId                 BigInt      @map("source_id")
+  filePath                 String      @map("file_path")
+  fileHash                 String?     @map("file_hash") @db.VarChar(128)
+  fileSize                 BigInt      @default(0) @map("file_size")
+  modifiedAt               DateTime?   @map("modified_at")
+  lastScannedAt            DateTime?   @map("last_scanned_at")
+  parseStatus              ParseStatus @default(pending) @map("parse_status")
+  errorMessage             String?     @map("error_message")
+  traceParserVersion       String?     @map("trace_parser_version") @db.VarChar(80)
+  evidenceExtractorVersion String?     @map("evidence_extractor_version") @db.VarChar(80)
+  createdAt                DateTime    @default(now()) @map("created_at")
+  updatedAt                DateTime    @updatedAt @map("updated_at")
 
   source   AgentSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   sessions AgentSession[]
@@ -139,31 +215,41 @@ model HistoryFile {
 }
 
 model AgentSession {
-  id               BigInt    @id @default(autoincrement())
-  sourceId         BigInt    @map("source_id")
-  historyFileId    BigInt?   @map("history_file_id")
-  agentName        String    @map("agent_name") @db.VarChar(100)
-  externalThreadId String    @map("external_thread_id") @db.VarChar(200)
-  title            String?
-  cwd              String?
-  modelName        String?   @map("model_name") @db.VarChar(100)
-  startedAt        DateTime? @map("started_at")
-  lastMessageAt    DateTime? @map("last_message_at")
-  messageCount     Int       @default(0) @map("message_count")
-  resumeCommand    String?   @map("resume_command")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  id                     BigInt                @id @default(autoincrement())
+  sourceId               BigInt                @map("source_id")
+  historyFileId          BigInt?               @map("history_file_id")
+  agentName              String                @map("agent_name") @db.VarChar(100)
+  externalThreadId       String                @map("external_thread_id") @db.VarChar(200)
+  title                  String?
+  cwd                    String?
+  modelName              String?               @map("model_name") @db.VarChar(100)
+  startedAt              DateTime?             @map("started_at")
+  lastMessageAt          DateTime?             @map("last_message_at")
+  messageCount           Int                   @default(0) @map("message_count")
+  traceRevision          Int                   @default(0) @map("trace_revision")
+  experienceBuildStatus  ExperienceBuildStatus @default(PENDING) @map("experience_build_status")
+  experienceBuilderVersion String?             @map("experience_builder_version") @db.VarChar(80)
+  experienceBuildError   String?               @map("experience_build_error")
+  experienceRequestedAt  DateTime?             @map("experience_requested_at")
+  experienceReadyAt      DateTime?             @map("experience_ready_at")
+  experienceProcessingAt DateTime?             @map("experience_processing_at")
+  resumeCommand          String?               @map("resume_command")
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @updatedAt @map("updated_at")
 
   chunks      AgentChunk[]
-  historyFile HistoryFile?   @relation(fields: [historyFileId], references: [id], onDelete: SetNull)
+  experiences AgentExperience[]
+  historyFile HistoryFile?       @relation(fields: [historyFileId], references: [id], onDelete: SetNull)
   messages    AgentMessage[]
-  source      AgentSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  source      AgentSource        @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  traceEvents AgentTraceEvent[]
 
   @@unique([sourceId, externalThreadId], map: "agent_session_source_thread_key")
   @@index([sourceId], map: "idx_agent_session_source")
   @@index([externalThreadId], map: "idx_agent_session_thread")
   @@index([updatedAt], map: "idx_agent_session_updated")
   @@index([lastMessageAt], map: "idx_agent_session_last_message")
+  @@index([experienceBuildStatus], map: "idx_agent_session_experience_build_status")
   @@map("agent_session")
 }
 
@@ -258,4 +344,127 @@ model EmbeddingJob {
   @@index([status], map: "idx_embedding_job_status")
   @@index([createdAt], map: "idx_embedding_job_created")
   @@map("embedding_job")
+}
+
+model AgentTraceEvent {
+  id              BigInt          @id @default(autoincrement())
+  sessionId       BigInt          @map("session_id")
+  sourceEventKey  String          @map("source_event_key") @db.VarChar(200)
+  seqNo           Int             @map("seq_no")
+  subSeqNo        Int             @default(0) @map("sub_seq_no")
+  eventKind       TraceEventKind  @map("event_kind")
+  operationKind   OperationKind   @map("operation_kind")
+  occurredAt      DateTime?       @map("occurred_at")
+  callId          String?         @map("call_id") @db.VarChar(200)
+  toolName        String?         @map("tool_name") @db.VarChar(100)
+  pairingQuality  EvidenceQuality @map("pairing_quality")
+  facts           Json
+  pathTokens      String[]        @default([]) @map("path_tokens")
+  errorSignatures String[]        @default([]) @map("error_signatures")
+  errorCodes      String[]        @default([]) @map("error_codes")
+  commandFamilies String[]        @default([]) @map("command_families")
+  redactedExcerpt String?         @map("redacted_excerpt")
+  rawPointer      Json?           @map("raw_pointer")
+  rawContentSha256 String?        @map("raw_content_sha256") @db.VarChar(64)
+  contentHash     String          @map("content_hash") @db.VarChar(64)
+  extractorVersion String         @map("extractor_version") @db.VarChar(80)
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  attemptLinks AgentAttemptEvidence[]
+  session      AgentSession           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, sourceEventKey], map: "agent_trace_event_session_source_event_key_key")
+  @@index([sessionId, seqNo, subSeqNo], map: "idx_agent_trace_event_session_seq")
+  @@index([eventKind], map: "idx_agent_trace_event_event_kind")
+  @@index([operationKind], map: "idx_agent_trace_event_operation_kind")
+  @@map("agent_trace_event")
+}
+
+model AgentExperience {
+  id                     BigInt            @id @default(autoincrement())
+  sessionId              BigInt            @map("session_id")
+  episodeIndex           Int               @map("episode_index")
+  sourceRevision         Int               @map("source_revision")
+  startSeq               Int               @map("start_seq")
+  endSeq                 Int               @map("end_seq")
+  kind                   String            @db.VarChar(80)
+  title                  String
+  taskText               String            @map("task_text")
+  templateSummary        String            @map("template_summary")
+  outcome                ExperienceOutcome
+  evidenceScore          Float             @map("evidence_score")
+  evidenceLevel          String            @map("evidence_level") @db.VarChar(40)
+  evidenceReasonCodes    String[]          @default([]) @map("evidence_reason_codes")
+  repoKey                String?           @map("repo_key") @db.VarChar(200)
+  cwd                    String?
+  pathTokens             String[]          @default([]) @map("path_tokens")
+  symbolTokens           String[]          @default([]) @map("symbol_tokens")
+  errorSignatures        String[]          @default([]) @map("error_signatures")
+  errorCodes             String[]          @default([]) @map("error_codes")
+  commandFamilies        String[]          @default([]) @map("command_families")
+  failedAttemptCount     Int               @default(0) @map("failed_attempt_count")
+  successfulAttemptCount Int               @default(0) @map("successful_attempt_count")
+  unverifiedAttemptCount Int               @default(0) @map("unverified_attempt_count")
+  searchText             String            @map("search_text")
+  searchDocumentVersion  String            @map("search_document_version") @db.VarChar(80)
+  embedding              Unsupported("vector(1024)")?
+  embeddingModel         String?           @map("embedding_model") @db.VarChar(100)
+  embeddingStatus        String            @default("pending") @map("embedding_status") @db.VarChar(20)
+  embeddingError         String?           @map("embedding_error")
+  embeddingReadyAt       DateTime?         @map("embedding_ready_at")
+  builderVersion         String            @map("builder_version") @db.VarChar(80)
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime          @updatedAt @map("updated_at")
+
+  attempts AgentAttempt[]
+  session  AgentSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, episodeIndex, sourceRevision], map: "agent_experience_session_episode_revision_key")
+  @@index([sessionId, sourceRevision], map: "idx_agent_experience_session_revision")
+  @@index([outcome], map: "idx_agent_experience_outcome")
+  @@index([repoKey], map: "idx_agent_experience_repo_key")
+  @@index([embeddingStatus], map: "idx_agent_experience_embedding_status")
+  @@map("agent_experience")
+}
+
+model AgentAttempt {
+  id                BigInt         @id @default(autoincrement())
+  experienceId      BigInt         @map("experience_id")
+  attemptIndex      Int            @map("attempt_index")
+  startSeq          Int            @map("start_seq")
+  endSeq            Int            @map("end_seq")
+  outcome           AttemptOutcome
+  outcomeConfidence Float          @map("outcome_confidence")
+  actionSignature   String         @map("action_signature")
+  actionTokens      String[]       @default([]) @map("action_tokens")
+  affectedPaths     String[]       @default([]) @map("affected_paths")
+  affectedSymbols   String[]       @default([]) @map("affected_symbols")
+  commandFamilies   String[]       @default([]) @map("command_families")
+  errorBefore       String[]       @default([]) @map("error_before")
+  errorAfter        String[]       @default([]) @map("error_after")
+  reasonCodes       String[]       @default([]) @map("reason_codes")
+  createdAt         DateTime       @default(now()) @map("created_at")
+
+  evidenceLinks AgentAttemptEvidence[]
+  experience    AgentExperience        @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@unique([experienceId, attemptIndex], map: "agent_attempt_experience_attempt_index_key")
+  @@index([outcome], map: "idx_agent_attempt_outcome")
+  @@index([actionSignature], map: "idx_agent_attempt_action_signature")
+  @@map("agent_attempt")
+}
+
+model AgentAttemptEvidence {
+  attemptId     BigInt              @map("attempt_id")
+  traceEventId  BigInt              @map("trace_event_id")
+  role          AttemptEvidenceRole
+  ordinal       Int
+
+  attempt    AgentAttempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  traceEvent AgentTraceEvent @relation(fields: [traceEventId], references: [id], onDelete: Cascade)
+
+  @@id([attemptId, traceEventId, role], map: "agent_attempt_evidence_pkey")
+  @@index([traceEventId], map: "idx_agent_attempt_evidence_trace_event")
+  @@index([role], map: "idx_agent_attempt_evidence_role")
+  @@map("agent_attempt_evidence")
 }

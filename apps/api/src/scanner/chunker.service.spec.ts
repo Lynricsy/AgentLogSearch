@@ -296,6 +296,7 @@ function session(
     startedAt: null,
     updatedAt: null,
     messages,
+    traceEvents: [],
   }
 }
 

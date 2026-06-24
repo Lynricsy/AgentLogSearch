@@ -1,0 +1,192 @@
+{
+  "sampleRoot": "../../sample-data",
+  "fixtures": [
+    {
+      "parserType": "claude-jsonl",
+      "files": ["claude/session-1.jsonl"],
+      "recordTypeCounts": {
+        "assistant": 1,
+        "summary": 1,
+        "tool_result": 1,
+        "user": 1
+      },
+      "topLevelKeys": [
+        "createdAt",
+        "cwd",
+        "message",
+        "model",
+        "resumeCommand",
+        "sessionId",
+        "title",
+        "type"
+      ],
+      "payloadTypeCounts": {},
+      "contentBlockTypeCounts": {
+        "base64": 1,
+        "image": 1,
+        "text": 2,
+        "tool_result": 1,
+        "tool_use": 1
+      },
+      "callIdFields": ["message.content[].id"],
+      "resultIdFields": ["message.content[].tool_use_id"],
+      "possibleExitCodeFields": [],
+      "shellCommandFields": [],
+      "patchFields": [],
+      "toolCallTypes": ["tool_use"],
+      "toolResultTypes": ["tool_result"]
+    },
+    {
+      "parserType": "codex-jsonl",
+      "files": ["codex/session-1.jsonl"],
+      "recordTypeCounts": {
+        "message": 3,
+        "session": 1
+      },
+      "topLevelKeys": [
+        "content",
+        "createdAt",
+        "cwd",
+        "model",
+        "resumeCommand",
+        "role",
+        "threadId",
+        "title",
+        "toolName",
+        "type"
+      ],
+      "payloadTypeCounts": {},
+      "contentBlockTypeCounts": {
+        "input_image": 1,
+        "text": 2,
+        "tool_call": 1,
+        "tool_result": 1
+      },
+      "callIdFields": [],
+      "resultIdFields": [],
+      "possibleExitCodeFields": ["content[].exitCode"],
+      "shellCommandFields": ["content[].arguments.cmd"],
+      "patchFields": [],
+      "toolCallTypes": ["tool_call"],
+      "toolResultTypes": ["tool_result"]
+    },
+    {
+      "parserType": "generic-json",
+      "files": ["generic/session-1.json"],
+      "recordTypeCounts": {},
+      "topLevelKeys": ["cwd", "messages", "threadId", "title"],
+      "payloadTypeCounts": {},
+      "contentBlockTypeCounts": {},
+      "callIdFields": [],
+      "resultIdFields": [],
+      "possibleExitCodeFields": [],
+      "shellCommandFields": [],
+      "patchFields": [],
+      "toolCallTypes": [],
+      "toolResultTypes": []
+    },
+    {
+      "parserType": "generic-jsonl",
+      "files": ["demo-agent/session-1.jsonl", "generic/session-1.jsonl"],
+      "recordTypeCounts": {},
+      "topLevelKeys": ["cwd", "messages", "threadId", "title"],
+      "payloadTypeCounts": {},
+      "contentBlockTypeCounts": {},
+      "callIdFields": [],
+      "resultIdFields": [],
+      "possibleExitCodeFields": [],
+      "shellCommandFields": [],
+      "patchFields": [],
+      "toolCallTypes": [],
+      "toolResultTypes": []
+    },
+    {
+      "parserType": "generic-markdown",
+      "files": ["generic/session-1.md"],
+      "recordTypeCounts": {},
+      "topLevelKeys": [],
+      "payloadTypeCounts": {},
+      "contentBlockTypeCounts": {},
+      "callIdFields": [],
+      "resultIdFields": [],
+      "possibleExitCodeFields": [],
+      "shellCommandFields": [],
+      "patchFields": [],
+      "toolCallTypes": [],
+      "toolResultTypes": []
+    },
+    {
+      "parserType": "opencode-sqlite",
+      "files": ["opencode/opencode.db"],
+      "recordTypeCounts": {},
+      "topLevelKeys": [],
+      "payloadTypeCounts": {},
+      "contentBlockTypeCounts": {},
+      "callIdFields": [],
+      "resultIdFields": [],
+      "possibleExitCodeFields": [],
+      "shellCommandFields": [],
+      "patchFields": [],
+      "toolCallTypes": [],
+      "toolResultTypes": [],
+      "opencodeTables": {
+        "messages": [
+          "content",
+          "content_type",
+          "created_at",
+          "id",
+          "model",
+          "role",
+          "sequence",
+          "session_id"
+        ],
+        "sessions": ["created_at", "cwd", "id", "model", "resume_command", "title"]
+      },
+      "opencodePartTypeCounts": {}
+    },
+    {
+      "parserType": "pi-jsonl",
+      "files": ["pi-agent/session-1.jsonl"],
+      "recordTypeCounts": {
+        "message": 3,
+        "session": 1
+      },
+      "topLevelKeys": [
+        "content",
+        "createdAt",
+        "cwd",
+        "event",
+        "model",
+        "resumeCommand",
+        "role",
+        "threadId",
+        "title",
+        "toolName"
+      ],
+      "payloadTypeCounts": {},
+      "contentBlockTypeCounts": {
+        "text": 1,
+        "tool_call": 1
+      },
+      "callIdFields": [],
+      "resultIdFields": [],
+      "possibleExitCodeFields": [],
+      "shellCommandFields": [],
+      "patchFields": [],
+      "toolCallTypes": ["tool_call"],
+      "toolResultTypes": ["tool_result"]
+    }
+  ],
+  "observations": {
+    "codexToolCallTypes": ["tool_call"],
+    "codexToolResultTypes": ["tool_result"],
+    "claudeContentBlockTypes": ["base64", "image", "text", "tool_result", "tool_use"],
+    "stableCallIdFields": ["message.content[].id"],
+    "resultIdFields": ["message.content[].tool_use_id"],
+    "shellCommandFields": ["content[].arguments.cmd"],
+    "possibleExitCodeFields": ["content[].exitCode"],
+    "patchFields": [],
+    "opencodeTableNames": ["messages", "sessions"],
+    "opencodePartTypes": []
+  }
+}

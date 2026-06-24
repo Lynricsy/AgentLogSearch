@@ -225,6 +225,61 @@ describe("parsers fixture coverage", () => {
     expect(session.messages[1]?.content).toContain("No matches found")
   })
 
+  it("extracts Claude tool calls and results into trace events", async () => {
+    // 前提
+    const source = await readTextSource("evidence/claude-tool-success.jsonl")
+
+    // 操作
+    const result = await registry.parse("claude-jsonl", source)
+    const session = only(result.sessions)
+
+    // 断言
+    expect(session.messages.map((message) => message.role)).toEqual(["user", "assistant", "tool"])
+    expect(session.traceEvents.map((event) => event.kind)).toEqual([
+      "user_message",
+      "assistant_message",
+      "tool_call",
+      "tool_result",
+    ])
+    expect(session.traceEvents.find((event) => event.kind === "tool_call")).toMatchObject({
+      callId: "toolu-success-1",
+      toolName: "Bash",
+    })
+    expect(session.traceEvents.find((event) => event.kind === "tool_result")).toMatchObject({
+      callId: "toolu-success-1",
+      result: { text: expect.stringContaining("Tests passed") },
+    })
+  })
+
+  it("keeps Claude tool_result out of user task trace events", async () => {
+    // 前提
+    const source = await readTextSource("evidence/claude-tool-failed-retry.jsonl")
+
+    // 操作
+    const result = await registry.parse("claude-jsonl", source)
+    const session = only(result.sessions)
+
+    // 断言
+    const userEvents = session.traceEvents.filter((event) => event.kind === "user_message")
+    expect(userEvents).toHaveLength(1)
+    expect(userEvents[0]).toMatchObject({ text: "Fix the failing typecheck" })
+    expect(session.traceEvents.filter((event) => event.kind === "tool_result")).toHaveLength(2)
+  })
+
+  it("accepts Claude tool calls with missing tool results", async () => {
+    // 前提
+    const source = await readTextSource("evidence/claude-missing-tool-result.jsonl")
+
+    // 操作
+    const result = await registry.parse("claude-jsonl", source)
+    const session = only(result.sessions)
+
+    // 断言
+    expect(result.errors).toEqual([])
+    expect(session.traceEvents.some((event) => event.kind === "tool_call")).toBe(true)
+    expect(session.traceEvents.some((event) => event.kind === "tool_result")).toBe(false)
+  })
+
   it("parses current Codex rollout JSONL without retaining tool return bodies as calls", async () => {
     // 前提：新版 Codex JSONL 使用 session_meta + payload.type 记录
     const filePath = await writeTempFile(

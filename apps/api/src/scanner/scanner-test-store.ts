@@ -8,10 +8,12 @@ import type {
   FakeSessionCreate,
   FakeSnapshot,
   FakeSource,
+  FakeTraceEvent,
   HistoryUniqueArgs,
   HistoryUpdateArgs,
   HistoryUpsertArgs,
   ScanJobUpdateArgs,
+  SessionUpdateArgs,
   SessionUpsertArgs,
   SourceUpdateArgs,
 } from "./scanner-test-types.js"
@@ -82,6 +84,18 @@ export class FakePrisma {
       }
       return this.addSession(create)
     },
+    update: async ({ data, where }: SessionUpdateArgs) => {
+      const existing = this.sessions.find((session) => session.id === where.id)
+      if (existing === undefined) {
+        return null
+      }
+      const traceRevision =
+        typeof data.traceRevision === "object" && data.traceRevision !== null
+          ? existing.traceRevision + data.traceRevision.increment
+          : data.traceRevision
+      Object.assign(existing, { ...data, traceRevision: traceRevision ?? existing.traceRevision })
+      return existing
+    },
   }
 
   public readonly agentMessage = {
@@ -112,6 +126,16 @@ export class FakePrisma {
     },
   }
 
+  public readonly agentTraceEvent = {
+    deleteMany: async ({ where }: { readonly where: { readonly sessionId: bigint } }) => {
+      this.traceEvents = this.traceEvents.filter((event) => event.sessionId !== where.sessionId)
+    },
+    createMany: async ({ data }: { readonly data: readonly FakeTraceEvent[] }) => {
+      this.traceEvents = [...this.traceEvents, ...data]
+      return { count: data.length }
+    },
+  }
+
   private chunks: FakeChunk[] = []
   private histories: FakeHistoryFile[] = []
   private id = 1n
@@ -120,6 +144,7 @@ export class FakePrisma {
   private sessions: FakeSession[] = []
   private shouldFailMessageCreateMany = false
   private sources: FakeSource[] = []
+  private traceEvents: FakeTraceEvent[] = []
 
   public async $transaction<T>(callback: (tx: FakePrisma) => Promise<T>): Promise<T> {
     const snapshot = this.snapshot()
@@ -153,9 +178,11 @@ export class FakePrisma {
   public addHistoryFile(input: FakeHistoryCreate): FakeHistoryFile {
     const history: FakeHistoryFile = {
       id: this.nextId(),
+      evidenceExtractorVersion: null,
       fileHash: null,
       parseStatus: "pending",
       errorMessage: null,
+      traceParserVersion: null,
       ...input,
     }
     this.histories = [...this.histories, history]
@@ -163,7 +190,17 @@ export class FakePrisma {
   }
 
   public addSession(input: FakeSessionCreate): FakeSession {
-    const session: FakeSession = { id: this.nextId(), ...input }
+    const session: FakeSession = {
+      id: this.nextId(),
+      experienceBuildError: null,
+      experienceBuildStatus: "PENDING",
+      experienceBuilderVersion: null,
+      experienceProcessingAt: null,
+      experienceReadyAt: null,
+      experienceRequestedAt: null,
+      traceRevision: 0,
+      ...input,
+    }
     this.sessions = [...this.sessions, session]
     return session
   }
@@ -186,6 +223,10 @@ export class FakePrisma {
 
   public chunksFor(sessionId: bigint): readonly FakeChunk[] {
     return this.chunks.filter((chunk) => chunk.sessionId === sessionId)
+  }
+
+  public traceEventsFor(sessionId: bigint): readonly FakeTraceEvent[] {
+    return this.traceEvents.filter((event) => event.sessionId === sessionId)
   }
 
   public onlyHistoryFile(): FakeHistoryFile {
@@ -216,6 +257,7 @@ export class FakePrisma {
       histories: this.histories.map((value) => ({ ...value })),
       messages: this.messages.map((value) => ({ ...value })),
       sessions: this.sessions.map((value) => ({ ...value })),
+      traceEvents: this.traceEvents.map((value) => ({ ...value })),
     }
   }
 
@@ -224,6 +266,7 @@ export class FakePrisma {
     this.histories = [...snapshot.histories]
     this.messages = [...snapshot.messages]
     this.sessions = [...snapshot.sessions]
+    this.traceEvents = [...snapshot.traceEvents]
   }
 
   private findSources(where: Readonly<Record<string, unknown>> | undefined): readonly FakeSource[] {

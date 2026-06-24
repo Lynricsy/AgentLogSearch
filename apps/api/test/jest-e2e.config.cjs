@@ -12,6 +12,8 @@ module.exports = {
     "^\\./domain\\.js$": "<rootDir>/../../packages/shared/src/domain.ts",
     "^\\./embeddings\\.js$": "<rootDir>/../../packages/shared/src/embeddings.ts",
     "^\\./errors\\.js$": "<rootDir>/../../packages/shared/src/errors.ts",
+    "^\\./evidence\\.js$": "<rootDir>/../../packages/shared/src/evidence.ts",
+    "^\\./experiences\\.js$": "<rootDir>/../../packages/shared/src/experiences.ts",
     "^\\./pagination\\.js$": "<rootDir>/../../packages/shared/src/pagination.ts",
     "^\\./search\\.js$": "<rootDir>/../../packages/shared/src/search.ts",
     "^\\./sources\\.js$": "<rootDir>/../../packages/shared/src/sources.ts",
@@ -21,8 +23,40 @@ module.exports = {
     "^\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\.\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\./env-file-config\\.js$": "<rootDir>/src/env-file-config.ts",
+    "^\\./evidence/(.*)\\.js$": "<rootDir>/src/evidence/$1.ts",
+    "^\\.\\./evidence/(.*)\\.js$": "<rootDir>/src/evidence/$1.ts",
+    "^\\./(command|errors|paths|patches|validation|redaction|excerpt)/(.*)\\.js$":
+      "<rootDir>/src/evidence/$1/$2.ts",
+    "^\\.\\./(command|errors|paths|patches|validation|redaction|excerpt)/(.*)\\.js$":
+      "<rootDir>/src/evidence/$1/$2.ts",
+    "^\\./(command-classifier|command-extractor|shell-tokenizer)\\.js$":
+      "<rootDir>/src/evidence/command/$1.ts",
+    "^\\./(error-extractor|error-fingerprint|error-normalizer)\\.js$":
+      "<rootDir>/src/evidence/errors/$1.ts",
+    "^\\./(path-extractor|path-normalizer)\\.js$": "<rootDir>/src/evidence/paths/$1.ts",
+    "^\\./(patch-parser)\\.js$": "<rootDir>/src/evidence/patches/$1.ts",
+    "^\\./(generic-process-parser|jest-output-parser|validation-output-parser|vitest-output-parser)\\.js$":
+      "<rootDir>/src/evidence/validation/$1.ts",
+    "^\\./(secret-redactor)\\.js$": "<rootDir>/src/evidence/redaction/$1.ts",
+    "^\\./(evidence-excerpt-builder)\\.js$": "<rootDir>/src/evidence/excerpt/$1.ts",
+    "^\\./(canonical-tool-classifier|evidence[^/]*|fixture-shape-inventory)\\.js$":
+      "<rootDir>/src/evidence/$1.ts",
+    "^\\./experience-search/(.*)\\.js$": "<rootDir>/src/experience-search/$1.ts",
+    "^\\.\\./experience-search/(.*)\\.js$": "<rootDir>/src/experience-search/$1.ts",
+    "^\\./(experience-ranker|experience-search\\.(?:controller|module|service)|failed-attempt-search\\.service|query-feature-extractor)\\.js$":
+      "<rootDir>/src/experience-search/$1.ts",
+    "^\\./experiences/(.*)\\.js$": "<rootDir>/src/experiences/$1.ts",
+    "^\\.\\./experiences/(.*)\\.js$": "<rootDir>/src/experiences/$1.ts",
+    "^\\./(attempt-builder|episode-segmenter|experiences\\.module|experience\\.config|experience-worker|experience-claim-store|experience-persistence\\.service|experience-builder|experience\\.types)\\.js$":
+      "<rootDir>/src/experiences/$1.ts",
     "^\\./health\\.controller\\.js$": "<rootDir>/src/health.controller.ts",
     "^\\./(message-parts)\\.js$": "<rootDir>/src/messages/$1.ts",
+    "^\\./pipeline-versions\\.js$": "<rootDir>/src/pipeline-versions.ts",
+    "^\\.\\./pipeline-versions\\.js$": "<rootDir>/src/pipeline-versions.ts",
+    "^\\./(compatibility\\.service|git-inspector\\.service|repositories\\.module|repository-locator\\.service|repository-path-policy\\.service|repository-snapshot\\.service|repository\\.types)\\.js$":
+      "<rootDir>/src/repositories/$1.ts",
+    "^\\./repositories/(.*)\\.js$": "<rootDir>/src/repositories/$1.ts",
+    "^\\.\\./repositories/(.*)\\.js$": "<rootDir>/src/repositories/$1.ts",
     "^\\./messages/(.*)\\.js$": "<rootDir>/src/messages/$1.ts",
     "^\\.\\./messages/(.*)\\.js$": "<rootDir>/src/messages/$1.ts",
     "^\\./embeddings/(.*)\\.js$": "<rootDir>/src/embeddings/$1.ts",
@@ -31,14 +65,17 @@ module.exports = {
     "^\\./parsers-test-support\\.js$": "<rootDir>/src/parsers-test-support.ts",
     "^\\./parsers/(.*)\\.js$": "<rootDir>/src/parsers/$1.ts",
     "^\\.\\./parsers/(.*)\\.js$": "<rootDir>/src/parsers/$1.ts",
-    "^\\./(agent-jsonl-parsers|content-normalizer|generic-json-parsers|generic-markdown-parser|json-parse|opencode-sqlite-parser|parser-errors|parser-registry|parser-types|record-access|session-builder|source-guards|source-readers)\\.js$":
+    "^\\.\\.\\/\\.\\.\\/parsers/(.*)\\.js$": "<rootDir>/src/parsers/$1.ts",
+    "^\\./(agent-jsonl-parsers|content-normalizer|generic-json-parsers|generic-markdown-parser|json-parse|jsonl-reader|opencode-sqlite-parser|parser-errors|parser-registry|parser-types|record-access|session-builder|source-guards|source-readers|trace-event-builders)\\.js$":
       "<rootDir>/src/parsers/$1.ts",
     "^\\./pg\\.service\\.js$": "<rootDir>/src/database/pg.service.ts",
     "^\\./prisma\\.service\\.js$": "<rootDir>/src/database/prisma.service.ts",
     "^\\./scanner/(.*)\\.js$": "<rootDir>/src/scanner/$1.ts",
     "^\\.\\./scanner/(.*)\\.js$": "<rootDir>/src/scanner/$1.ts",
+    "^\\./chunker\\.service\\.js$": "<rootDir>/src/scanner/chunker.service.ts",
     "^\\./scan\\.controller\\.js$": "<rootDir>/src/scanner/scan.controller.ts",
-    "^\\./(scanner[^/]*|source-reader-registry)\\.js$": "<rootDir>/src/scanner/$1.ts",
+    "^\\./(message-retention|scanner[^/]*|source-reader-registry)\\.js$":
+      "<rootDir>/src/scanner/$1.ts",
     "^\\./search/(.*)\\.js$": "<rootDir>/src/search/$1.ts",
     "^\\.\\./search/(.*)\\.js$": "<rootDir>/src/search/$1.ts",
     "^\\./(search[^/]*)\\.js$": "<rootDir>/src/search/$1.ts",
@@ -47,6 +84,9 @@ module.exports = {
     "^\\./(session[^/]*|sessions[^/]*)\\.js$": "<rootDir>/src/sessions/$1.ts",
     "^\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
     "^\\.\\./scan-jobs/(.*)\\.js$": "<rootDir>/src/scan-jobs/$1.ts",
+    "^\\./traces/(.*)\\.js$": "<rootDir>/src/traces/$1.ts",
+    "^\\.\\./traces/(.*)\\.js$": "<rootDir>/src/traces/$1.ts",
+    "^\\./(tool-exchange[^/]*)\\.js$": "<rootDir>/src/traces/$1.ts",
     "^\\./(history-files\\.service|record-readers|scan-job-mapping|scan-jobs\\.controller|scan-jobs\\.module|scan-jobs\\.service)\\.js$":
       "<rootDir>/src/scan-jobs/$1.ts",
     "^\\./source-mapping\\.js$": "<rootDir>/src/sources/source-mapping.ts",

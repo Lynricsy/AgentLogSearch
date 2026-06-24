@@ -376,6 +376,23 @@ Validate the fixture baseline:
 pnpm --filter api test -- --runTestsByPath src/fixtures/fixture-validation.spec.ts
 ```
 
+为 Evidence Edition 旁路流水线清点 fixture 结构：
+
+```bash
+pnpm --filter api inspect:fixtures
+```
+
+该命令会写入 `docs/evidence/fixture-shape-inventory.json`，记录 parser type、顶层字段、
+tool call/result 类型形态、候选 call id/result id/exit code 字段、shell 命令字段、patch
+字段，以及 OpenCode SQLite 表和 part 形态。它只保存结构信息，不持久化消息正文、工具输出
+正文、stdout/stderr、文件内容或原始 patch 内容。
+
+Evidence Edition 同时在 `apps/api/src/pipeline-versions.ts` 增加版本常量，并在
+`.env.example` 增加默认关闭的运行时开关。`EVIDENCE_PIPELINE_ENABLED=true` 会在扫描时持久化
+脱敏 trace/evidence，`EXPERIENCE_WORKER_ENABLED=true` 会异步构建 experience，
+`EXPERIENCE_SEARCH_ENABLED=true` 会开放 experience search/detail/check API。搜索请求可选传入
+`repositoryPath`，用于在结果中展示只读的静态仓库兼容性信号。
+
 ## Sources API
 
 The API now exposes source configuration endpoints under `/api/sources`:
@@ -589,6 +606,110 @@ assuming arbitrary strings are valid database ids.
 
 Because this endpoint returns complete indexed messages, it is intended for local development use
 only and must not be exposed without adding authentication and an explicit deployment threat model.
+
+## Experience Search API
+
+Evidence-aware experience APIs are guarded by `EXPERIENCE_SEARCH_ENABLED=true`. They read only
+`READY` sessions whose `agent_experience.sourceRevision` matches the session `traceRevision`, so a
+new scan can mark a session pending without deleting the last usable experience set first.
+
+`POST /api/experiences/search` performs a conservative lexical and structured search over built
+experiences. Dense experience embeddings are still a later milestone, so this endpoint currently
+ranks by code/error/path/symbol/command overlap and evidence score.
+
+Request body:
+
+```json
+{
+  "query": "TS2339 scanner importer 测试失败",
+  "errorText": "error TS2339: Property 'foo' does not exist",
+  "files": ["apps/api/src/scanner/scanner-importer.ts"],
+  "symbols": ["ScannerImporter"],
+  "repositoryPath": "/workspace/CliSearch",
+  "mode": "all",
+  "topK": 10
+}
+```
+
+Responses are grouped by outcome:
+
+```json
+{
+  "successful": [],
+  "failedAttempts": [],
+  "partial": [],
+  "unverified": []
+}
+```
+
+Each result includes the experience id, session id, task summary, evidence level/reason codes,
+score breakdown, matched path/error tokens, attempts, and evidence event summaries. It does not
+return full raw tool output.
+
+When `repositoryPath` is provided, search results also include a static repository compatibility
+block. The API compares the historical experience paths and repo key against the current Git tree,
+adds a `compatibilityFactor` to the score breakdown, and reranks the top candidates conservatively.
+This signal is intentionally limited to existence/rename/repo identity context and always carries
+the compatibility disclaimer from the Repository Compatibility section.
+
+`GET /api/experiences/:id` returns one experience with attempts, source session metadata, and
+redacted evidence event summaries. Invalid or missing ids return the standard error envelope with
+`experience_not_found`.
+
+`GET /api/experiences/status` returns the current build queue and search-readiness counters:
+pending/processing/ready/failed sessions, current-vs-stale experience counts, experience embedding
+status counts, feature flag state, and the latest worker error if a build failed. This endpoint is
+read-only and remains available even when `EXPERIENCE_SEARCH_ENABLED=false`, so operators can see
+why search is not ready yet.
+
+`POST /api/experiences/rebuild` marks matching sessions `PENDING` and clears build errors without
+running the worker inside the HTTP request. By default it skips sessions that are already `READY`;
+pass `includeReady: true` to force rebuilding ready sessions.
+
+```json
+{
+  "sourceId": "1",
+  "includeReady": true
+}
+```
+
+`POST /api/experiences/check-failed-attempt` checks a planned operation against historical failed
+attempts. The compatibility alias `POST /api/experiences/check-attempt` accepts the same payload.
+The checker only searches failed attempts and uses a fixed, non-prescriptive warning message:
+`计划操作与一条历史失败尝试高度相似。`
+
+```json
+{
+  "task": "修复 ScannerImporter 后准备运行测试",
+  "files": ["apps/api/src/scanner/scanner-importer.ts"],
+  "symbols": ["ScannerImporter"],
+  "operationKinds": ["TEST"],
+  "plannedCommand": "pnpm --filter api test",
+  "topK": 5
+}
+```
+
+The response risk is `none`, `low`, `medium`, or `high`; matches include the failed attempt, matched
+tokens, score breakdown, and redacted evidence summaries. It intentionally avoids wording such as
+"必然失败" or "不要这样做"; callers should present it as prior-art context, not a hard rule.
+
+## Repository Compatibility
+
+Evidence Edition includes a read-only repository compatibility foundation under
+`apps/api/src/repositories`. The first slice safely locates a Git repository from an absolute path,
+derives a credential-free `repoKey`, captures the current Git snapshot, and compares historical
+experience file paths with the current tree. It can distinguish deleted files from Git renames when
+the historical commit is available.
+
+Compatibility is static context, not patch validation. Any UI or automation that presents this data
+must keep the disclaimer visible:
+
+```text
+该结果只表示相关工程对象仍然存在或相似，不代表历史 patch 可以直接应用。
+```
+
+Git inspection is performed with argument arrays and a small command allowlist. The implementation
+does not run historical commands and does not mutate the target repository.
 
 ## Scan Jobs API
 

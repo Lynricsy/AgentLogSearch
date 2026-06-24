@@ -19,16 +19,25 @@ export type FakeHistoryFile = {
   readonly id: bigint
   readonly sourceId: bigint
   readonly filePath: string
+  evidenceExtractorVersion: string | null
   fileHash: string | null
   parseStatus: string
   errorMessage: string | null
+  traceParserVersion: string | null
 }
 
 export type FakeSession = {
   readonly id: bigint
   readonly sourceId: bigint
   readonly externalThreadId: string
+  experienceBuildError: string | null
+  experienceBuildStatus: string
+  experienceBuilderVersion: string | null
+  experienceProcessingAt: Date | null
+  experienceReadyAt: Date | null
+  experienceRequestedAt: Date | null
   historyFileId: bigint | null
+  traceRevision: number
 }
 
 export type FakeMessage = {
@@ -38,6 +47,14 @@ export type FakeMessage = {
   readonly content: string
   readonly model?: string | null
   readonly createdAt?: Date | null
+}
+
+export type FakeTraceEvent = Record<string, unknown> & {
+  readonly facts?: unknown
+  readonly pathTokens?: readonly string[]
+  readonly redactedExcerpt?: string | null
+  readonly sessionId: bigint
+  readonly sourceEventKey: string
 }
 
 export type FakeChunk = {
@@ -61,13 +78,24 @@ export type FakeParser = {
 export type FakeHistoryCreate = {
   readonly sourceId: bigint
   readonly filePath: string
+  readonly evidenceExtractorVersion?: string | null
   readonly fileHash?: string | null
+  readonly traceParserVersion?: string | null
 }
 
 export type FakeSessionCreate = {
   readonly sourceId: bigint
   readonly externalThreadId: string
   readonly historyFileId: bigint | null
+}
+
+export type SessionUpdateArgs = {
+  readonly data: Partial<
+    Omit<FakeSession, "traceRevision"> & {
+      readonly traceRevision: { readonly increment: number } | number
+    }
+  >
+  readonly where: { readonly id: bigint }
 }
 
 export type HistoryUniqueArgs = {
@@ -118,4 +146,5 @@ export type FakeSnapshot = {
   readonly histories: readonly FakeHistoryFile[]
   readonly messages: readonly FakeMessage[]
   readonly sessions: readonly FakeSession[]
+  readonly traceEvents: readonly FakeTraceEvent[]
 }

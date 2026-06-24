@@ -72,6 +72,17 @@ function createClient(overrides: Partial<ApiClient> = {}): ApiClient {
     getSession: async () => {
       throw new Error("not used")
     },
+    getExperience: async () => {
+      throw new Error("not used")
+    },
+    searchExperiences: async () => ({
+      failedAttempts: [],
+      partial: [],
+      successful: [],
+      unverified: [],
+    }),
+    rebuildExperiences: async () => ({ affectedSessions: 0 }),
+    checkFailedAttempt: async () => ({ matches: [], message: null, risk: "none" }),
     listScanJobs: async () => pageResponse([]),
     listSourcePresets: async () => [],
     listSources: async () => [],

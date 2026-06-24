@@ -5,8 +5,10 @@ import { join } from "node:path"
 import type { AgentRole } from "@agent-log-search/shared"
 import { Test } from "@nestjs/testing"
 import { PrismaService } from "../database/prisma.service.js"
+import { EvidencePipelineService } from "../evidence/evidence-pipeline.service.js"
 import type { ParseResult } from "../parsers/index.js"
 import { ParseFailureError, ParserRegistry } from "../parsers/index.js"
+import { EVIDENCE_EXTRACTOR_VERSION, TRACE_PARSER_VERSION } from "../pipeline-versions.js"
 import { ChunkerService } from "../scanner/chunker.service.js"
 import { ScannerConflictError, ScannerService } from "./scanner.service.js"
 import { ScannerFileRunner } from "./scanner-file-runner.js"
@@ -24,7 +26,13 @@ describe("ScannerService", () => {
     const fingerprint = sha256("same")
     const prisma = createPrismaFake()
     const source = prisma.addSource({ fileGlob: "*.jsonl", rootPath: rootOf(filePath) })
-    prisma.addHistoryFile({ fileHash: fingerprint, filePath, sourceId: source.id })
+    prisma.addHistoryFile({
+      evidenceExtractorVersion: EVIDENCE_EXTRACTOR_VERSION,
+      fileHash: fingerprint,
+      filePath,
+      sourceId: source.id,
+      traceParserVersion: TRACE_PARSER_VERSION,
+    })
     const parser = createParserFake(makeParseResult(filePath, "thread-unchanged"))
     const service = await createScanner(prisma, parser)
 
@@ -35,6 +43,31 @@ describe("ScannerService", () => {
     expect(result.filesDiscovered).toBe(1)
     expect(result.filesParsed).toBe(0)
     expect(parser.calls).toBe(0)
+  })
+
+  it("reimports an unchanged file when pipeline versions changed", async () => {
+    // Given
+    const filePath = await writeHistory("unchanged-version.jsonl", "same")
+    const fingerprint = sha256("same")
+    const prisma = createPrismaFake()
+    const source = prisma.addSource({ fileGlob: "*.jsonl", rootPath: rootOf(filePath) })
+    prisma.addHistoryFile({ fileHash: fingerprint, filePath, sourceId: source.id })
+    const parser = createParserFake(makeParseResult(filePath, "thread-version"))
+    const service = await createScanner(prisma, parser)
+
+    // When
+    const result = await service.runSource(source.id)
+    const history = prisma.onlyHistoryFile()
+    const session = prisma.onlySession()
+
+    // Then
+    expect(result.filesParsed).toBe(1)
+    expect(parser.calls).toBe(1)
+    expect(history.traceParserVersion).toBe(TRACE_PARSER_VERSION)
+    expect(history.evidenceExtractorVersion).toBe(EVIDENCE_EXTRACTOR_VERSION)
+    expect(session.traceRevision).toBe(1)
+    expect(session.experienceBuildStatus).toBe("READY")
+    expect(session.experienceReadyAt).toBeInstanceOf(Date)
   })
 
   it("reimports a changed file and replaces messages in one transaction", async () => {
@@ -158,6 +191,228 @@ describe("ScannerService", () => {
     expect(chunkText).not.toContain("secret tool output")
   })
 
+  it("persists tool result trace metadata without storing raw secret output", async () => {
+    // Given
+    const filePath = await writeHistory("secret-trace.jsonl", "new content")
+    const prisma = createPrismaFake()
+    const source = prisma.addSource({ fileGlob: "*.jsonl", rootPath: rootOf(filePath) })
+    const service = await createScanner(
+      prisma,
+      createParserFake({
+        sessions: [
+          {
+            parserType: "generic-jsonl",
+            sourcePath: filePath,
+            threadId: "thread-secret-trace",
+            cwd: "/workspace",
+            title: "Secret trace",
+            model: "model",
+            startedAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:01:00.000Z",
+            messages: [
+              {
+                role: "assistant",
+                content: "Running command",
+                model: null,
+                sequence: 0,
+                createdAt: null,
+              },
+              {
+                role: "tool",
+                content: "SECRET_TOKEN_SHOULD_NOT_BE_PERSISTED=super-secret-value",
+                model: null,
+                sequence: 1,
+                createdAt: null,
+              },
+            ],
+            traceEvents: [
+              {
+                kind: "tool_result",
+                sourceEventKey: "tool-result-secret",
+                sequence: 1,
+                subSequence: 0,
+                callId: "call-secret",
+                rawPointer: { sourcePath: filePath, lineNumber: 2 },
+                result: {
+                  text: "SECRET_TOKEN_SHOULD_NOT_BE_PERSISTED=super-secret-value",
+                  status: "success",
+                },
+              },
+            ],
+          },
+        ],
+        warnings: [],
+        errors: [],
+      }),
+    )
+
+    // When
+    await service.runSource(source.id)
+    const importedSession = prisma.onlySession()
+    const persistedTrace = prisma.traceEventsFor(importedSession.id)
+
+    // Then
+    expect(prisma.messagesFor(importedSession.id).map((message) => message.role)).toEqual([
+      "assistant",
+    ])
+    expect(String(persistedTrace[0]?.redactedExcerpt)).not.toContain(
+      "SECRET_TOKEN_SHOULD_NOT_BE_PERSISTED",
+    )
+    expect(String(persistedTrace[0]?.facts)).not.toContain("SECRET_TOKEN_SHOULD_NOT_BE_PERSISTED")
+    expect(persistedTrace[0]).toMatchObject({
+      sourceEventKey: "tool-result-secret",
+      redactedExcerpt: null,
+    })
+  })
+
+  it("persists normalized evidence facts when evidence pipeline is enabled", async () => {
+    // Given
+    const previousFlag = readEnv("EVIDENCE_PIPELINE_ENABLED")
+    writeEnv("EVIDENCE_PIPELINE_ENABLED", "true")
+    const filePath = await writeHistory("evidence-trace.jsonl", "new content")
+    const prisma = createPrismaFake()
+    const source = prisma.addSource({ fileGlob: "*.jsonl", rootPath: rootOf(filePath) })
+    const service = await createScanner(
+      prisma,
+      createParserFake({
+        sessions: [
+          {
+            parserType: "generic-jsonl",
+            sourcePath: filePath,
+            threadId: "thread-evidence-trace",
+            cwd: "/repo",
+            title: "Evidence trace",
+            model: "model",
+            startedAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:01:00.000Z",
+            messages: [
+              {
+                role: "user",
+                content: "修复 failing test",
+                model: null,
+                sequence: 0,
+                createdAt: null,
+              },
+            ],
+            traceEvents: [
+              {
+                kind: "tool_call",
+                sourceEventKey: "test-call",
+                sequence: 1,
+                subSequence: 0,
+                callId: "call-test",
+                toolName: "exec_command",
+                rawPointer: { sourcePath: filePath, lineNumber: 2 },
+                arguments: { command: "pnpm --filter api test apps/api/src/foo.spec.ts" },
+              },
+              {
+                kind: "tool_result",
+                sourceEventKey: "test-result",
+                sequence: 2,
+                subSequence: 0,
+                callId: "call-test",
+                rawPointer: { sourcePath: filePath, lineNumber: 3 },
+                result: {
+                  exitCode: 1,
+                  status: "failed",
+                  text: [
+                    "FAIL apps/api/src/foo.spec.ts",
+                    "TypeError: bad input",
+                    "Test Suites: 1 failed, 1 total",
+                    "Tests:       1 failed, 2 passed, 3 total",
+                    "Process exited with code 1",
+                    "SECRET_TOKEN_SHOULD_NOT_BE_PERSISTED=super-secret-value",
+                  ].join("\n"),
+                },
+              },
+              {
+                kind: "tool_call",
+                sourceEventKey: "patch-call",
+                sequence: 3,
+                subSequence: 0,
+                callId: "call-patch",
+                toolName: "apply_patch",
+                rawPointer: { sourcePath: filePath, lineNumber: 4 },
+                arguments: {
+                  patch: [
+                    "*** Begin Patch",
+                    "*** Update File: apps/api/src/foo.ts",
+                    "@@",
+                    "-const a = 1",
+                    "+const a = 2",
+                    "*** End Patch",
+                  ].join("\n"),
+                },
+              },
+              {
+                kind: "tool_result",
+                sourceEventKey: "patch-result",
+                sequence: 4,
+                subSequence: 0,
+                callId: "call-patch",
+                rawPointer: { sourcePath: filePath, lineNumber: 5 },
+                result: { status: "success", text: "Done" },
+              },
+            ],
+          },
+        ],
+        warnings: [],
+        errors: [],
+      }),
+    )
+
+    try {
+      // When
+      await service.runSource(source.id)
+    } finally {
+      if (previousFlag === undefined) {
+        deleteEnv("EVIDENCE_PIPELINE_ENABLED")
+      } else {
+        writeEnv("EVIDENCE_PIPELINE_ENABLED", previousFlag)
+      }
+    }
+
+    // Then
+    const importedSession = prisma.onlySession()
+    const traces = prisma.traceEventsFor(importedSession.id)
+    const testTrace = traces.find((trace) => trace.sourceEventKey === "test-call")
+    const patchTrace = traces.find((trace) => trace.sourceEventKey === "patch-call")
+    const serialized = JSON.stringify(traces, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value,
+    )
+
+    expect(importedSession.experienceBuildStatus).toBe("PENDING")
+    expect(testTrace).toMatchObject({
+      operationKind: "TEST",
+      pairingQuality: "EXACT",
+      commandFamilies: ["test"],
+      errorCodes: [],
+    })
+    expect(testTrace?.facts).toMatchObject({
+      canonicalToolKind: "shell",
+      processResult: { exitCode: 1, status: "failed" },
+      testSummary: { failed: 1, passed: 2, status: "failed" },
+    })
+    expect(testTrace?.pathTokens).toContain("apps/api/src/foo.spec.ts")
+    expect(testTrace?.redactedExcerpt).toContain("<redacted:env-secret>")
+    expect(serialized).not.toContain("super-secret-value")
+    expect(serialized).not.toContain("SECRET_TOKEN_SHOULD_NOT_BE_PERSISTED=super-secret-value")
+
+    expect(patchTrace?.facts).toMatchObject({
+      canonicalToolKind: "apply_patch",
+      patch: {
+        files: [
+          {
+            path: "apps/api/src/foo.ts",
+            operation: "update",
+            addedLines: 1,
+            deletedLines: 1,
+          },
+        ],
+      },
+    })
+  })
+
   it("marks history and scan job failed when a parser raises a typed parse failure", async () => {
     // Given
     const filePath = await writeHistory("bad.jsonl", "{bad")
@@ -265,6 +520,7 @@ async function createScanner(prisma: FakePrisma, parser: FakeParser): Promise<Sc
     providers: [
       ScannerFileRunner,
       ChunkerService,
+      EvidencePipelineService,
       ScannerImporter,
       ScannerJobStore,
       ScannerService,
@@ -305,6 +561,7 @@ function makeParseResult(
           sequence,
           createdAt: null,
         })),
+        traceEvents: [],
       },
     ],
     warnings: [],
@@ -336,4 +593,16 @@ function rootOf(filePath: string): string {
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex")
+}
+
+function readEnv(name: string): string | undefined {
+  return process.env[name]
+}
+
+function writeEnv(name: string, value: string): void {
+  process.env[name] = value
+}
+
+function deleteEnv(name: string): void {
+  delete process.env[name]
 }

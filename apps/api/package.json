@@ -12,6 +12,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
+    "inspect:fixtures": "tsx scripts/inspect-agent-fixtures.ts ../../sample-data --output ../../docs/evidence/fixture-shape-inventory.json && cd ../.. && biome format --write docs/evidence/fixture-shape-inventory.json",
     "test": "jest --config jest.config.cjs --passWithNoTests",
     "test:e2e": "jest --config test/jest-e2e.config.cjs",
     "typecheck": "tsc --noEmit"
@@ -41,6 +42,7 @@
     "jest": "^30.4.2",
     "prisma": "^6.19.3",
     "supertest": "^7.2.2",
-    "ts-jest": "^29.4.11"
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.22.4"
   }
 }

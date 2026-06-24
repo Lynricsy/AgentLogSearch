@@ -22,6 +22,6 @@ describe("AppShell", () => {
       within(navigation)
         .getAllByRole("button")
         .map((link) => link.textContent),
-    ).toEqual(["搜索", "数据源", "扫描任务"])
+    ).toEqual(["搜索", "经验", "数据源", "扫描任务"])
   })
 })

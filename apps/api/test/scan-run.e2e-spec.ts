@@ -101,7 +101,7 @@ describe("Scan Run API", () => {
     await expectImportedCounts(sourceIds)
     await expectImportedChunks(sourceIds)
     await expectImportedSession({
-      chunkSnippet: "synthetic-json-fixture",
+      chunkSnippet: "extract threadId, cwd, title, roles, and content from JSON.",
       messageSnippet: "extract threadId, cwd, title, roles, and content from JSON.",
       modelName: "generic-json-synthetic",
       sourceId: BigInt(created[1]?.id ?? "0"),
@@ -109,7 +109,7 @@ describe("Scan Run API", () => {
       title: "Synthetic Generic JSON Session",
     })
     await expectImportedSession({
-      chunkSnippet: "markdown-tool-result",
+      chunkSnippet: "Markdown fixtures expose threadId, cwd, title, role, and content fields.",
       messageSnippet: "Markdown fixtures expose threadId, cwd, title, role, and content fields.",
       modelName: "generic-markdown-synthetic",
       sourceId: BigInt(created[2]?.id ?? "0"),
@@ -150,8 +150,8 @@ describe("Scan Run API", () => {
         where: { session: { sourceId: { in: ids } } },
       }),
     ])
-    expect(sessions).toBeGreaterThanOrEqual(5)
-    expect(messages).toBeGreaterThanOrEqual(21)
+    expect(sessions).toBe(7)
+    expect(messages).toBe(14)
   }
 
   async function expectImportedChunks(ids: readonly bigint[]): Promise<void> {
@@ -192,9 +192,9 @@ describe("Scan Run API", () => {
     expect(session?.title).toBe(input.title)
     expect(session?.cwd).toBe("/workspace/synthetic-generic")
     expect(session?.modelName).toBe(input.modelName)
-    expect(session?.messageCount).toBe(3)
+    expect(session?.messageCount).toBe(2)
     expect(session?.resumeCommand).toBe("cd '/workspace/synthetic-generic'")
-    expect(session?.messages.map((message) => message.role)).toEqual(["user", "assistant", "tool"])
+    expect(session?.messages.map((message) => message.role)).toEqual(["user", "assistant"])
     expect(
       session?.messages.some((message) => message.content.includes(input.messageSnippet)),
     ).toBe(true)

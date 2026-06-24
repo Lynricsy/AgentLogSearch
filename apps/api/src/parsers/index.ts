@@ -10,8 +10,14 @@ export { ParseFailureError, UnsupportedParserError } from "./parser-errors.js"
 export { ParserRegistry } from "./parser-registry.js"
 export type {
   AgentHistoryParser,
+  ParsedAssistantMessageEvent,
   ParsedMessage,
   ParsedSession,
+  ParsedSystemEvent,
+  ParsedToolCallEvent,
+  ParsedToolResultEvent,
+  ParsedTraceEvent,
+  ParsedUserMessageEvent,
   ParseIssue,
   ParseResult,
   ParserSource,

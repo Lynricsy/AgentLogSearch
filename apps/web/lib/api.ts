@@ -6,6 +6,17 @@ import {
   agentSourceSchema,
   apiErrorResponseSchema,
   type CreateSourceRequest,
+  type ExperienceDetail,
+  type ExperienceFailedAttemptCheckRequest,
+  type ExperienceFailedAttemptCheckResponse,
+  type ExperienceRebuildRequest,
+  type ExperienceRebuildResponse,
+  type ExperienceSearchRequest,
+  type ExperienceSearchResponse,
+  experienceDetailSchema,
+  experienceFailedAttemptCheckResponseSchema,
+  experienceRebuildResponseSchema,
+  experienceSearchResponseSchema,
   PAGINATION_DEFAULTS,
   type PaginatedResponse,
   paginationQuerySchema,
@@ -47,7 +58,31 @@ export type ApiClient = {
   readonly runSourceScan: (sourceId: string) => Promise<ScanRunResponse>
   readonly listScanJobs: (query?: ScanJobsQuery) => Promise<PaginatedResponse<ScanJob>>
   readonly getSession: (id: string) => Promise<AgentSessionDetail>
+  readonly searchExperiences: (
+    payload: ExperienceSearchClientRequest,
+  ) => Promise<ExperienceSearchResponse>
+  readonly getExperience: (id: string) => Promise<ExperienceDetail>
+  readonly rebuildExperiences: (
+    payload?: ExperienceRebuildClientRequest,
+  ) => Promise<ExperienceRebuildResponse>
+  readonly checkFailedAttempt: (
+    payload: ExperienceFailedAttemptCheckClientRequest,
+  ) => Promise<ExperienceFailedAttemptCheckResponse>
 }
+
+export type ExperienceSearchClientRequest = Omit<
+  ExperienceSearchRequest,
+  "files" | "mode" | "symbols" | "topK"
+> &
+  Partial<Pick<ExperienceSearchRequest, "files" | "mode" | "symbols" | "topK">>
+export type ExperienceRebuildClientRequest = Partial<ExperienceRebuildRequest>
+export type ExperienceFailedAttemptCheckClientRequest = Omit<
+  ExperienceFailedAttemptCheckRequest,
+  "files" | "operationKinds" | "symbols" | "topK"
+> &
+  Partial<
+    Pick<ExperienceFailedAttemptCheckRequest, "files" | "operationKinds" | "symbols" | "topK">
+  >
 
 export class ApiClientError extends Error {
   readonly code: string
@@ -121,6 +156,25 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     },
     getSession: (id) =>
       requestJson(api.get(`sessions/${encodeURIComponent(id)}`), agentSessionDetailSchema),
+    searchExperiences: (payload) =>
+      requestJson(
+        api.post("experiences/search", { json: experienceSearchPayload(payload) }),
+        experienceSearchResponseSchema,
+      ),
+    getExperience: (id) =>
+      requestJson(api.get(`experiences/${encodeURIComponent(id)}`), experienceDetailSchema),
+    rebuildExperiences: (payload = {}) =>
+      requestJson(
+        api.post("experiences/rebuild", { json: experienceRebuildPayload(payload) }),
+        experienceRebuildResponseSchema,
+      ),
+    checkFailedAttempt: (payload) =>
+      requestJson(
+        api.post("experiences/check-failed-attempt", {
+          json: experienceFailedAttemptCheckPayload(payload),
+        }),
+        experienceFailedAttemptCheckResponseSchema,
+      ),
   }
 }
 
@@ -199,5 +253,41 @@ function scanJobsSearchParams(query: ScanJobsQuery = {}): Record<string, string>
   return {
     page: String(parsed.data.page),
     pageSize: String(parsed.data.pageSize),
+  }
+}
+
+function experienceSearchPayload(payload: ExperienceSearchClientRequest): ExperienceSearchRequest {
+  const repositoryPath = payload.repositoryPath?.trim()
+  return {
+    files: payload.files ?? [],
+    mode: payload.mode ?? "all",
+    query: payload.query,
+    ...(repositoryPath === undefined || repositoryPath.length === 0 ? {} : { repositoryPath }),
+    symbols: payload.symbols ?? [],
+    topK: payload.topK ?? 10,
+    ...(payload.errorText === undefined ? {} : { errorText: payload.errorText }),
+  }
+}
+
+function experienceRebuildPayload(
+  payload: ExperienceRebuildClientRequest,
+): ExperienceRebuildRequest {
+  return {
+    includeReady: payload.includeReady ?? false,
+    ...(payload.sessionId === undefined ? {} : { sessionId: payload.sessionId }),
+    ...(payload.sourceId === undefined ? {} : { sourceId: payload.sourceId }),
+  }
+}
+
+function experienceFailedAttemptCheckPayload(
+  payload: ExperienceFailedAttemptCheckClientRequest,
+): ExperienceFailedAttemptCheckRequest {
+  return {
+    files: payload.files ?? [],
+    operationKinds: payload.operationKinds ?? [],
+    symbols: payload.symbols ?? [],
+    task: payload.task,
+    topK: payload.topK ?? 5,
+    ...(payload.plannedCommand === undefined ? {} : { plannedCommand: payload.plannedCommand }),
   }
 }

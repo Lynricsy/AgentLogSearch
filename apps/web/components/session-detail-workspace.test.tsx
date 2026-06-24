@@ -248,6 +248,17 @@ function createClient(overrides: Partial<ApiClient> = {}): ApiClient {
     },
     deleteSource: async () => undefined,
     getSession: async () => baseSession,
+    getExperience: async () => {
+      throw new Error("not used")
+    },
+    searchExperiences: async () => ({
+      failedAttempts: [],
+      partial: [],
+      successful: [],
+      unverified: [],
+    }),
+    rebuildExperiences: async () => ({ affectedSessions: 0 }),
+    checkFailedAttempt: async () => ({ matches: [], message: null, risk: "none" }),
     listScanJobs: async () => ({ items: [], page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }),
     listSourcePresets: async () => [],
     listSources: async () => [],

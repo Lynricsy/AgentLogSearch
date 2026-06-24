@@ -20,6 +20,8 @@ export type ParseIssueCode =
   | "invalid_shape"
   | "missing_cwd"
   | "missing_thread_id"
+  | "oversized_jsonl_line"
+  | "unsupported_tool_record_shape"
   | "unsupported_parser"
   | "wrong_source_kind"
 
@@ -38,6 +40,63 @@ export type ParsedMessage = {
   readonly createdAt: string | null
 }
 
+export type ParsedTraceRawPointer = {
+  readonly sourcePath: string
+  readonly lineNumber?: number
+  readonly sqliteTable?: string
+  readonly sqliteRowId?: string
+  readonly jsonPath?: string
+}
+
+export type ParsedTraceEventBase = {
+  readonly sourceEventKey: string
+  readonly sequence: number
+  readonly subSequence: number
+  readonly occurredAt?: Date
+  readonly rawPointer: ParsedTraceRawPointer
+}
+
+export type ParsedUserMessageEvent = ParsedTraceEventBase & {
+  readonly kind: "user_message"
+  readonly text: string
+}
+
+export type ParsedAssistantMessageEvent = ParsedTraceEventBase & {
+  readonly kind: "assistant_message"
+  readonly text: string
+}
+
+export type ParsedToolCallEvent = ParsedTraceEventBase & {
+  readonly kind: "tool_call"
+  readonly callId?: string
+  readonly toolName: string
+  readonly arguments: unknown
+}
+
+export type ParsedToolResultEvent = ParsedTraceEventBase & {
+  readonly kind: "tool_result"
+  readonly callId?: string
+  readonly toolName?: string
+  readonly result: {
+    readonly text?: string
+    readonly structured?: unknown
+    readonly exitCode?: number
+    readonly status?: "success" | "failed" | "unknown"
+  }
+}
+
+export type ParsedSystemEvent = ParsedTraceEventBase & {
+  readonly kind: "system"
+  readonly text: string
+}
+
+export type ParsedTraceEvent =
+  | ParsedUserMessageEvent
+  | ParsedAssistantMessageEvent
+  | ParsedToolCallEvent
+  | ParsedToolResultEvent
+  | ParsedSystemEvent
+
 export type ParsedSession = {
   readonly parserType: ParserType
   readonly sourcePath: string
@@ -48,6 +107,7 @@ export type ParsedSession = {
   readonly startedAt: string | null
   readonly updatedAt: string | null
   readonly messages: readonly ParsedMessage[]
+  readonly traceEvents: readonly ParsedTraceEvent[]
 }
 
 export type ParseResult = {

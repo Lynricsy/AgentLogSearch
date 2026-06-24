@@ -1,3 +1,4 @@
+import { parseJsonlRecords as parseJsonlRecordResult } from "./jsonl-reader.js"
 import { ParseFailureError } from "./parser-errors.js"
 import { type JsonRecord, requireRecord } from "./record-access.js"
 
@@ -28,16 +29,15 @@ export function parseJsonRecord(raw: string, filePath: string): JsonRecord {
 }
 
 export function parseJsonlRecords(raw: string, filePath: string): readonly JsonLineRecord[] {
-  return raw
-    .split(/\r?\n/)
-    .map((line, index) => ({ line, lineNumber: index + 1 }))
-    .filter((entry) => entry.line.trim().length > 0)
-    .map((entry) => ({
-      record: requireRecord(
-        parseJsonValue(entry.line, filePath, entry.lineNumber),
-        filePath,
-        `line ${entry.lineNumber}`,
-      ),
-      line: entry.lineNumber,
-    }))
+  const result = parseJsonlRecordResult(raw, filePath)
+  const invalidJson = result.warnings.find((warning) => warning.code === "invalid_json")
+  if (invalidJson !== undefined) {
+    throw new ParseFailureError({
+      code: "invalid_json",
+      filePath,
+      line: invalidJson.line,
+      message: invalidJson.message,
+    })
+  }
+  return result.records
 }

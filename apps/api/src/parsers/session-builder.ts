@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto"
 import type { AgentRole, ParserType } from "@agent-log-search/shared"
 import { normalizeContent } from "./content-normalizer.js"
-import type { ParsedMessage, ParsedSession, ParseIssue } from "./parser-types.js"
+import type { ParsedMessage, ParsedSession, ParsedTraceEvent, ParseIssue } from "./parser-types.js"
+import { buildMessageOnlyTrace } from "./trace-event-builders.js"
 
 export type SessionDraft = {
   readonly parserType: ParserType
@@ -13,6 +14,7 @@ export type SessionDraft = {
   readonly startedAt: string | null
   readonly updatedAt: string | null
   readonly messages: readonly MessageDraft[]
+  readonly traceEvents?: readonly ParsedTraceEvent[]
 }
 
 export type MessageDraft = {
@@ -48,6 +50,7 @@ export function buildSession(draft: SessionDraft): {
       startedAt: draft.startedAt,
       updatedAt: draft.updatedAt,
       messages,
+      traceEvents: draft.traceEvents ?? buildMessageOnlyTrace(draft.sourcePath, messages),
     },
     warnings,
   }

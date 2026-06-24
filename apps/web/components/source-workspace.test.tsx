@@ -20,6 +20,17 @@ function createClient(overrides: Partial<ApiClient> = {}): ApiClient {
     createSource: async () => createSource(),
     deleteSource: async () => undefined,
     getSession: () => Promise.reject(new Error("not used")),
+    getExperience: async () => {
+      throw new Error("not used")
+    },
+    searchExperiences: async () => ({
+      failedAttempts: [],
+      partial: [],
+      successful: [],
+      unverified: [],
+    }),
+    rebuildExperiences: async () => ({ affectedSessions: 0 }),
+    checkFailedAttempt: async () => ({ matches: [], message: null, risk: "none" }),
     listScanJobs: async () => ({ items: [], page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }),
     listSourcePresets: async () => SOURCE_PRESET_METADATA,
     listSources: async () => [],

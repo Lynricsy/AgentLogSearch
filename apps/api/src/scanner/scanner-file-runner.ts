@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common"
 import type { ParserSource } from "../parsers/index.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { ParseFailureError, ParserRegistry } from "../parsers/index.js"
+import { EVIDENCE_EXTRACTOR_VERSION, TRACE_PARSER_VERSION } from "../pipeline-versions.js"
 import type { MutableScanCounters, SourceConfig } from "./scanner.types.js"
 import { ScannerParseIssuesError } from "./scanner-errors.js"
 import { fingerprintSource } from "./scanner-fingerprint.js"
@@ -16,7 +17,11 @@ type HistoryLookup = {
     readonly where: {
       readonly sourceId_filePath: { readonly sourceId: bigint; readonly filePath: string }
     }
-  }): Promise<{ readonly fileHash: string | null } | null>
+  }): Promise<{
+    readonly evidenceExtractorVersion: string | null
+    readonly fileHash: string | null
+    readonly traceParserVersion: string | null
+  } | null>
 }
 
 @Injectable()
@@ -85,7 +90,11 @@ async function isUnchanged(
   const history = await historyFile.findUnique({
     where: { sourceId_filePath: { sourceId, filePath } },
   })
-  return history?.fileHash === hash
+  return (
+    history?.fileHash === hash &&
+    history.traceParserVersion === TRACE_PARSER_VERSION &&
+    history.evidenceExtractorVersion === EVIDENCE_EXTRACTOR_VERSION
+  )
 }
 
 function summarizeFileError(error: unknown): string {

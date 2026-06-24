@@ -2,7 +2,7 @@
 
 import { Button } from "@heroui/react"
 import type { LucideIcon } from "lucide-react"
-import { Database, ScanLine, Search } from "lucide-react"
+import { Database, History, ScanLine, Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
@@ -17,6 +17,7 @@ type NavItem = {
 
 const navItems = [
   { href: "/search", label: "搜索", Icon: Search },
+  { href: "/experiences", label: "经验", Icon: History },
   { href: "/sources", label: "数据源", Icon: Database },
   { href: "/scan-jobs", label: "扫描任务", Icon: ScanLine },
 ] as const satisfies readonly NavItem[]

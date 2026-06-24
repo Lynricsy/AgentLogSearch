@@ -1,8 +1,25 @@
 import type { ParserType } from "@agent-log-search/shared"
 import { normalizeContent } from "./content-normalizer.js"
-import { type JsonLineRecord, parseJsonlRecords } from "./json-parse.js"
-import type { AgentHistoryParser, ParseResult, ParserSource } from "./parser-types.js"
-import { type JsonRecord, readOptionalString, readRole, readValue } from "./record-access.js"
+import type { JsonLineRecord } from "./json-parse.js"
+import { parseJsonlRecords } from "./jsonl-reader.js"
+import type {
+  AgentHistoryParser,
+  ParsedToolResultEvent,
+  ParsedTraceEvent,
+  ParseResult,
+  ParserSource,
+} from "./parser-types.js"
+import {
+  asRecord,
+  flattenTextBlocks,
+  type JsonRecord,
+  readNumber,
+  readOptionalString,
+  readPath,
+  readRole,
+  readString,
+  readValue,
+} from "./record-access.js"
 import {
   buildSession,
   latestCreatedAt,
@@ -10,11 +27,34 @@ import {
   type SessionDraft,
 } from "./session-builder.js"
 import { requireTextSource } from "./source-guards.js"
+import {
+  buildAssistantMessageEvent,
+  buildToolCallEvent,
+  buildToolResultEvent,
+  buildUserMessageEvent,
+  jsonlEventKey,
+  jsonlRawPointer,
+  parseOptionalDate,
+  withOptionalOccurredAt,
+} from "./trace-event-builders.js"
 
 const MAX_CODEX_TOOL_ARGUMENT_CHARS = 600
 const MAX_CODEX_TOOL_FIELD_CHARS = 300
 const MAX_CODEX_PATCH_FILES = 20
 const MAX_DERIVED_TITLE_CHARS = 80
+const MAX_TRACE_TEXT_CHARS = 20_000
+const TOOL_CALL_TYPES = new Set([
+  "function_call",
+  "custom_tool_call",
+  "local_shell_call",
+  "tool_call",
+])
+const TOOL_RESULT_TYPES = new Set([
+  "function_call_output",
+  "custom_tool_call_output",
+  "local_shell_call_output",
+  "tool_result",
+])
 const SYNTHETIC_USER_CONTEXT_PREFIXES = [
   "# AGENTS.md instructions",
   "<command-message>",
@@ -69,16 +109,22 @@ export class PiJsonlParser implements AgentHistoryParser {
 
 function parseAgentJsonl(source: ParserSource, config: AgentJsonlConfig): ParseResult {
   const textSource = requireTextSource(source, config.parserType)
-  const records = parseJsonlRecords(textSource.content, textSource.filePath)
+  const parsedJsonl = parseJsonlRecords(textSource.content, textSource.filePath)
+  const records = parsedJsonl.records
   const sessionRecord = records.find((entry) => isSessionRecord(entry.record, config))
   const draft = buildAgentDraft(config, textSource.filePath, records, sessionRecord?.record ?? null)
   const built = buildSession(draft)
-  return { sessions: [built.session], warnings: built.warnings, errors: [] }
+  return {
+    sessions: [built.session],
+    warnings: [...parsedJsonl.warnings, ...built.warnings],
+    errors: [],
+  }
 }
 
 function parseCodexJsonl(source: ParserSource, parserType: ParserType): ParseResult {
   const textSource = requireTextSource(source, parserType)
-  const records = parseJsonlRecords(textSource.content, textSource.filePath)
+  const parsedJsonl = parseJsonlRecords(textSource.content, textSource.filePath)
+  const records = parsedJsonl.records
   if (!isCodexRollout(records)) {
     return parseAgentJsonl(source, {
       parserType,
@@ -90,7 +136,11 @@ function parseCodexJsonl(source: ParserSource, parserType: ParserType): ParseRes
 
   const draft = buildCodexRolloutDraft(parserType, textSource.filePath, records)
   const built = buildSession(draft)
-  return { sessions: [built.session], warnings: built.warnings, errors: [] }
+  return {
+    sessions: [built.session],
+    warnings: [...parsedJsonl.warnings, ...built.warnings],
+    errors: [],
+  }
 }
 
 function isCodexRollout(records: readonly JsonLineRecord[]): boolean {
@@ -126,6 +176,9 @@ function buildCodexRolloutDraft(
   const messages = records
     .map((entry) => toCodexRolloutMessageDraft(entry, hasResponseItemMessages))
     .filter((message) => message !== null)
+  const traceEvents = records.flatMap((entry, index) =>
+    toCodexRolloutTraceEvents(entry, index, filePath),
+  )
 
   return {
     parserType,
@@ -142,6 +195,7 @@ function buildCodexRolloutDraft(
       null,
     updatedAt: latestCreatedAt(messages),
     messages,
+    traceEvents,
   }
 }
 
@@ -265,9 +319,302 @@ function readPayload(record: JsonRecord | undefined): JsonRecord | null {
   return record === undefined ? null : readPayloadRecord(record, "payload")
 }
 
+function toCodexRolloutTraceEvents(
+  entry: JsonLineRecord,
+  index: number,
+  filePath: string,
+): readonly ParsedTraceEvent[] {
+  const payload = readPayload(entry.record) ?? entry.record
+  const recordType = readOptionalString(entry.record, "type")
+  const payloadType = readOptionalString(payload, "type")
+  const createdAt =
+    readOptionalString(entry.record, "timestamp") ?? readOptionalString(payload, "timestamp")
+  const sequence = index
+  const rawPointer = jsonlRawPointer(filePath, entry.line, "/payload")
+
+  if (recordType === "event_msg" && payloadType === "user_message") {
+    const text = flattenTextBlocks(
+      firstDefined(readValue(payload, "message"), readValue(payload, "content")),
+      MAX_TRACE_TEXT_CHARS,
+    )?.text
+    return text === undefined || isSyntheticUserContextText(text)
+      ? []
+      : [
+          buildUserMessageEvent(
+            withOptionalOccurredAt(
+              {
+                sourceEventKey: jsonlEventKey({
+                  parser: "codex",
+                  lineNumber: entry.line,
+                  blockIndex: 0,
+                  kind: "user_message",
+                }),
+                sequence,
+                subSequence: 0,
+                rawPointer,
+                text,
+              },
+              parseOptionalDate(createdAt),
+            ),
+          ),
+        ]
+  }
+
+  if (recordType === "event_msg" && payloadType === "agent_message") {
+    const text = flattenTextBlocks(
+      firstDefined(
+        readValue(payload, "message"),
+        readValue(payload, "text"),
+        readValue(payload, "content"),
+      ),
+      MAX_TRACE_TEXT_CHARS,
+    )?.text
+    return text === undefined
+      ? []
+      : [
+          buildAssistantMessageEvent(
+            withOptionalOccurredAt(
+              {
+                sourceEventKey: jsonlEventKey({
+                  parser: "codex",
+                  lineNumber: entry.line,
+                  blockIndex: 0,
+                  kind: "assistant_message",
+                }),
+                sequence,
+                subSequence: 0,
+                rawPointer,
+                text,
+              },
+              parseOptionalDate(createdAt),
+            ),
+          ),
+        ]
+  }
+
+  if (payloadType === "message") {
+    return codexMessageTraceEvents(payload, entry, sequence, filePath, createdAt)
+  }
+
+  if (payloadType !== null && TOOL_CALL_TYPES.has(payloadType)) {
+    return [codexToolCallTraceEvent(payload, entry, sequence, filePath, payloadType, createdAt)]
+  }
+
+  if (payloadType !== null && TOOL_RESULT_TYPES.has(payloadType)) {
+    return [codexToolResultTraceEvent(payload, entry, sequence, filePath, payloadType, createdAt)]
+  }
+
+  return []
+}
+
+function codexMessageTraceEvents(
+  payload: JsonRecord,
+  entry: JsonLineRecord,
+  sequence: number,
+  filePath: string,
+  createdAt: string | null,
+): readonly ParsedTraceEvent[] {
+  const role = readRole(readValue(payload, "role"))
+  const content = readValue(payload, "content")
+  const text = flattenTextBlocks(content, MAX_TRACE_TEXT_CHARS)?.text
+  if (text === undefined) {
+    return []
+  }
+  if (role === "user") {
+    return [
+      buildUserMessageEvent(
+        withOptionalOccurredAt(
+          {
+            sourceEventKey: jsonlEventKey({
+              parser: "codex",
+              lineNumber: entry.line,
+              blockIndex: 0,
+              kind: "user_message",
+            }),
+            sequence,
+            subSequence: 0,
+            rawPointer: jsonlRawPointer(filePath, entry.line, "/payload/content"),
+            text,
+          },
+          parseOptionalDate(createdAt),
+        ),
+      ),
+    ]
+  }
+  if (role === "assistant") {
+    return [
+      buildAssistantMessageEvent(
+        withOptionalOccurredAt(
+          {
+            sourceEventKey: jsonlEventKey({
+              parser: "codex",
+              lineNumber: entry.line,
+              blockIndex: 0,
+              kind: "assistant_message",
+            }),
+            sequence,
+            subSequence: 0,
+            rawPointer: jsonlRawPointer(filePath, entry.line, "/payload/content"),
+            text,
+          },
+          parseOptionalDate(createdAt),
+        ),
+      ),
+    ]
+  }
+  return []
+}
+
+function codexToolCallTraceEvent(
+  payload: JsonRecord,
+  entry: JsonLineRecord,
+  sequence: number,
+  filePath: string,
+  kind: string,
+  createdAt: string | null,
+): ParsedTraceEvent {
+  const callId = readString(payload, [["call_id"], ["callId"], ["id"]])
+  const toolName =
+    readString(payload, [["name"], ["tool_name"], ["toolName"], ["tool"]]) ?? "unknown"
+  const args = parseArgumentsValue(
+    firstDefined(
+      readPath(payload, ["arguments"]),
+      readPath(payload, ["input"]),
+      readPath(payload, ["args"]),
+      readPath(payload, ["command"]),
+    ),
+  )
+  return buildToolCallEvent(
+    withOptionalOccurredAt(
+      {
+        sourceEventKey: jsonlEventKey(
+          withOptionalCallId(
+            { parser: "codex", lineNumber: entry.line, blockIndex: 0, kind },
+            callId,
+          ),
+        ),
+        sequence,
+        subSequence: 0,
+        rawPointer: jsonlRawPointer(filePath, entry.line, "/payload"),
+        ...(callId === undefined ? {} : { callId }),
+        toolName,
+        arguments: args,
+      },
+      parseOptionalDate(createdAt),
+    ),
+  )
+}
+
+function codexToolResultTraceEvent(
+  payload: JsonRecord,
+  entry: JsonLineRecord,
+  sequence: number,
+  filePath: string,
+  kind: string,
+  createdAt: string | null,
+): ParsedToolResultEvent {
+  const output = firstDefined(
+    readPath(payload, ["output"]),
+    readPath(payload, ["content"]),
+    readPath(payload, ["result"]),
+    readPath(payload, ["stdout"]),
+    readPath(payload, ["stderr"]),
+  )
+  const text = flattenTextBlocks(output, MAX_TRACE_TEXT_CHARS)
+  const structured = pickStructuredToolResultFields(output)
+  const exitCode = readNumber(payload, [["exit_code"], ["exitCode"], ["status", "exit_code"]])
+  const callId = readString(payload, [["call_id"], ["callId"], ["id"]])
+  return buildToolResultEvent(
+    withOptionalOccurredAt(
+      {
+        sourceEventKey: jsonlEventKey(
+          withOptionalCallId(
+            { parser: "codex", lineNumber: entry.line, blockIndex: 0, kind },
+            callId,
+          ),
+        ),
+        sequence,
+        subSequence: 0,
+        rawPointer: jsonlRawPointer(filePath, entry.line, "/payload"),
+        ...(callId === undefined ? {} : { callId }),
+        result: compactRecord({
+          text: text?.text,
+          structured,
+          exitCode,
+          status: parseExplicitStatus(payload),
+        }),
+      },
+      parseOptionalDate(createdAt),
+    ),
+  )
+}
+
 function readPayloadRecord(record: JsonRecord, field: string): JsonRecord | null {
   const value = readValue(record, field)
   return isMessageRecord(value) ? value : null
+}
+
+function withOptionalCallId<T extends object>(
+  input: T,
+  callId: string | undefined,
+): T & { readonly callId?: string } {
+  return callId === undefined ? input : { ...input, callId }
+}
+
+function parseArgumentsValue(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value ?? {}
+  }
+  const trimmed = value.trim()
+  if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) {
+    return { command: value }
+  }
+  try {
+    return JSON.parse(trimmed) as unknown
+  } catch {
+    return { raw: value }
+  }
+}
+
+function pickStructuredToolResultFields(value: unknown): JsonRecord | undefined {
+  const record = isMessageRecord(value) ? value : null
+  if (record === null) {
+    return undefined
+  }
+  const exitCode = readNumber(record, [["exit_code"], ["exitCode"]])
+  const durationMs = readNumber(record, [["duration_ms"], ["durationMs"]])
+  const stdout = flattenTextBlocks(readValue(record, "stdout"), MAX_TRACE_TEXT_CHARS)?.text
+  const stderr = flattenTextBlocks(readValue(record, "stderr"), MAX_TRACE_TEXT_CHARS)?.text
+  const status = parseExplicitStatus(record)
+  const structured = compactRecord({
+    stdoutExcerptSource: stdout,
+    stderrExcerptSource: stderr,
+    exitCode,
+    durationMs,
+    status,
+  })
+  return Object.keys(structured).length === 0 ? undefined : structured
+}
+
+function parseExplicitStatus(
+  value: unknown,
+): ParsedToolResultEvent["result"]["status"] | undefined {
+  const status = readString(value, [["status"], ["result", "status"], ["metadata", "status"]])
+  switch (status) {
+    case "success":
+    case "succeeded":
+    case "completed":
+    case "ok":
+      return "success"
+    case "failed":
+    case "failure":
+    case "error":
+      return "failed"
+    case "unknown":
+      return "unknown"
+    default:
+      return undefined
+  }
 }
 
 function firstDefined(...values: readonly unknown[]): unknown {
@@ -464,6 +811,10 @@ function buildAgentDraft(
     .filter((entry) => entry.record !== sessionRecord)
     .map((entry) => toMessageDraft(entry.record, entry.line))
     .filter((message) => message !== null)
+  const traceEvents =
+    config.parserType === "claude-jsonl"
+      ? records.flatMap((entry, index) => toClaudeTraceEvents(entry, index, filePath))
+      : undefined
 
   return {
     parserType: config.parserType,
@@ -475,7 +826,187 @@ function buildAgentDraft(
     startedAt: readOptionalFromSession("createdAt", sessionRecord),
     updatedAt: latestCreatedAt(messages),
     messages,
+    ...(traceEvents === undefined ? {} : { traceEvents }),
   }
+}
+
+function toClaudeTraceEvents(
+  entry: JsonLineRecord,
+  index: number,
+  filePath: string,
+): readonly ParsedTraceEvent[] {
+  const message = asRecord(readValue(entry.record, "message"))
+  if (message === null) {
+    return []
+  }
+  const role = readRole(readValue(message, "role") ?? readValue(entry.record, "type"))
+  const content = readPath(message, ["content"])
+  const createdAt =
+    readOptionalString(entry.record, "timestamp") ??
+    readOptionalString(entry.record, "createdAt") ??
+    readOptionalString(message, "createdAt")
+  const blocks = Array.isArray(content) ? content : [content]
+  return blocks.flatMap((block, blockIndex) =>
+    toClaudeBlockTraceEvent({
+      block,
+      blockIndex,
+      createdAt,
+      entry,
+      filePath,
+      role,
+      sequence: index,
+    }),
+  )
+}
+
+function toClaudeBlockTraceEvent(input: {
+  readonly block: unknown
+  readonly blockIndex: number
+  readonly createdAt: string | null
+  readonly entry: JsonLineRecord
+  readonly filePath: string
+  readonly role: MessageDraft["role"]
+  readonly sequence: number
+}): readonly ParsedTraceEvent[] {
+  const blockRecord = asRecord(input.block)
+  const type = blockRecord === null ? null : readOptionalString(blockRecord, "type")
+  if (type === "tool_use" && blockRecord !== null) {
+    const callId = readString(blockRecord, [["id"]])
+    return [
+      buildToolCallEvent(
+        withOptionalOccurredAt(
+          {
+            sourceEventKey: jsonlEventKey(
+              withOptionalCallId(
+                {
+                  parser: "claude",
+                  lineNumber: input.entry.line,
+                  blockIndex: input.blockIndex,
+                  kind: "tool_call",
+                },
+                callId,
+              ),
+            ),
+            sequence: input.sequence,
+            subSequence: input.blockIndex,
+            rawPointer: jsonlRawPointer(
+              input.filePath,
+              input.entry.line,
+              `/message/content/${input.blockIndex.toString()}`,
+            ),
+            ...(callId === undefined ? {} : { callId }),
+            toolName: readString(blockRecord, [["name"]]) ?? "unknown",
+            arguments: readPath(blockRecord, ["input"]) ?? {},
+          },
+          parseOptionalDate(input.createdAt),
+        ),
+      ),
+    ]
+  }
+  if (type === "tool_result" && blockRecord !== null) {
+    const text = flattenTextBlocks(readPath(blockRecord, ["content"]), MAX_TRACE_TEXT_CHARS)
+    const callId = readString(blockRecord, [["tool_use_id"], ["id"]])
+    return [
+      buildToolResultEvent(
+        withOptionalOccurredAt(
+          {
+            sourceEventKey: jsonlEventKey(
+              withOptionalCallId(
+                {
+                  parser: "claude",
+                  lineNumber: input.entry.line,
+                  blockIndex: input.blockIndex,
+                  kind: "tool_result",
+                },
+                callId,
+              ),
+            ),
+            sequence: input.sequence,
+            subSequence: input.blockIndex,
+            rawPointer: jsonlRawPointer(
+              input.filePath,
+              input.entry.line,
+              `/message/content/${input.blockIndex.toString()}`,
+            ),
+            ...(callId === undefined ? {} : { callId }),
+            result: compactRecord({
+              text: text?.text,
+              structured: pickStructuredToolResultFields(blockRecord),
+              exitCode: readNumber(blockRecord, [
+                ["exit_code"],
+                ["exitCode"],
+                ["metadata", "exit_code"],
+                ["metadata", "exitCode"],
+              ]),
+              status: parseExplicitStatus(blockRecord),
+            }),
+          },
+          parseOptionalDate(input.createdAt),
+        ),
+      ),
+    ]
+  }
+  if (type === "thinking") {
+    return []
+  }
+  const text =
+    typeof input.block === "string"
+      ? input.block
+      : flattenTextBlocks(input.block, MAX_TRACE_TEXT_CHARS)?.text
+  if (text === undefined || text.trim().length === 0) {
+    return []
+  }
+  if (input.role === "user") {
+    return [
+      buildUserMessageEvent(
+        withOptionalOccurredAt(
+          {
+            sourceEventKey: jsonlEventKey({
+              parser: "claude",
+              lineNumber: input.entry.line,
+              blockIndex: input.blockIndex,
+              kind: "user_message",
+            }),
+            sequence: input.sequence,
+            subSequence: input.blockIndex,
+            rawPointer: jsonlRawPointer(
+              input.filePath,
+              input.entry.line,
+              `/message/content/${input.blockIndex.toString()}`,
+            ),
+            text,
+          },
+          parseOptionalDate(input.createdAt),
+        ),
+      ),
+    ]
+  }
+  if (input.role === "assistant") {
+    return [
+      buildAssistantMessageEvent(
+        withOptionalOccurredAt(
+          {
+            sourceEventKey: jsonlEventKey({
+              parser: "claude",
+              lineNumber: input.entry.line,
+              blockIndex: input.blockIndex,
+              kind: "assistant_message",
+            }),
+            sequence: input.sequence,
+            subSequence: input.blockIndex,
+            rawPointer: jsonlRawPointer(
+              input.filePath,
+              input.entry.line,
+              `/message/content/${input.blockIndex.toString()}`,
+            ),
+            text,
+          },
+          parseOptionalDate(input.createdAt),
+        ),
+      ),
+    ]
+  }
+  return []
 }
 
 function toMessageDraft(record: JsonRecord, line: number): MessageDraft | null {
