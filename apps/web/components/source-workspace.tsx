@@ -2,7 +2,7 @@
 
 import type { AgentSource } from "@agent-log-search/shared"
 import { Button } from "@heroui/react"
-import { RefreshCw } from "lucide-react"
+import { Plus, RefreshCw } from "lucide-react"
 import type { Dispatch, SetStateAction } from "react"
 import { useCallback, useEffect, useState } from "react"
 
@@ -15,7 +15,6 @@ import {
   type SourceScanState,
 } from "./source-types"
 import { type SourceLoadState, SourceWorkspaceView } from "./source-workspace-view"
-import { StatusBadge } from "./status-badge"
 
 type SourceWorkspaceProps = {
   readonly client?: ApiClient
@@ -24,6 +23,7 @@ type SourceWorkspaceProps = {
 export function SourceWorkspace({ client = apiClient }: SourceWorkspaceProps) {
   const [loadState, setLoadState] = useState<SourceLoadState>({ kind: "loading" })
   const [editingSource, setEditingSource] = useState<AgentSource | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -57,6 +57,7 @@ export function SourceWorkspace({ client = apiClient }: SourceWorkspaceProps) {
         : await client.createSource(formStateToCreateRequest(state))
       setLoadState((current) => mergeSavedSource(current, saved))
       setEditingSource(null)
+      setIsCreateOpen(false)
     } catch (error) {
       setFormError(describeError(error))
     } finally {
@@ -98,7 +99,7 @@ export function SourceWorkspace({ client = apiClient }: SourceWorkspaceProps) {
     setScanningId(source.id)
     setScanStates((current) => ({
       ...current,
-      [source.id]: { message: "Running", tone: "warning" },
+      [source.id]: { message: "扫描中", tone: "warning" },
     }))
     try {
       const response = await client.runSourceScan(source.id)
@@ -107,7 +108,7 @@ export function SourceWorkspace({ client = apiClient }: SourceWorkspaceProps) {
       setScanStates((current) => ({
         ...current,
         [source.id]: {
-          message: record?.errorMessage ?? `Scan ${status}`,
+          message: record?.errorMessage ?? (status === "completed" ? "扫描已完成" : "扫描失败"),
           tone: status === "completed" ? "success" : "danger",
         },
       }))
@@ -122,38 +123,70 @@ export function SourceWorkspace({ client = apiClient }: SourceWorkspaceProps) {
     }
   }
 
+  const openCreateDialog = useCallback(() => {
+    setEditingSource(null)
+    setFormError(null)
+    setIsCreateOpen(true)
+  }, [])
+
+  const closeCreateDialog = useCallback(() => {
+    setIsCreateOpen(false)
+    setFormError(null)
+  }, [])
+
+  const openEditForm = useCallback((source: AgentSource) => {
+    setIsCreateOpen(false)
+    setFormError(null)
+    setEditingSource(source)
+  }, [])
+
+  const closeEditForm = useCallback(() => {
+    setEditingSource(null)
+    setFormError(null)
+  }, [])
+
   return (
-    <section aria-label="Sources workspace" className="space-y-5">
+    <section aria-label="数据源工作区" className="space-y-5">
       <PageHeader
         actions={
           <div className="flex flex-wrap gap-2">
-            <StatusBadge tone={loadState.kind === "ready" ? "success" : "neutral"}>
-              GET {client.baseUrl}/sources
-            </StatusBadge>
             <Button
-              aria-label="Refresh sources"
+              aria-label="打开创建数据源对话框"
+              color="primary"
+              onPress={openCreateDialog}
+              radius="sm"
+              size="sm"
+              startContent={<Plus aria-hidden="true" className="size-4" />}
+            >
+              创建数据源
+            </Button>
+            <Button
+              aria-label="刷新数据源"
               onPress={load}
               radius="sm"
               size="sm"
               startContent={<RefreshCw aria-hidden="true" className="size-4" />}
               variant="bordered"
             >
-              Refresh
+              刷新
             </Button>
           </div>
         }
-        eyebrow="Source configuration"
-        subtitle="Manage local agent history sources, apply presets, and run scans on demand."
-        title="Sources"
+        eyebrow="数据源配置"
+        subtitle="管理本机 Agent 历史数据源，应用预设，并按需运行扫描。"
+        title="数据源"
       />
       <SourceWorkspaceView
         deletingId={deletingId}
         editingSource={editingSource}
         formError={formError}
+        isCreateOpen={isCreateOpen}
         loadState={loadState}
-        onCancelEdit={() => setEditingSource(null)}
+        onCancelCreate={closeCreateDialog}
+        onCancelEdit={closeEditForm}
+        onCreate={openCreateDialog}
         onDelete={deleteSource}
-        onEdit={setEditingSource}
+        onEdit={openEditForm}
         onRetry={load}
         onScan={runScan}
         onSubmit={submitSource}
@@ -170,7 +203,7 @@ export function SourceWorkspace({ client = apiClient }: SourceWorkspaceProps) {
 function describeError(error: unknown): string {
   if (error instanceof ApiClientError) return error.message
   if (error instanceof Error) return error.message
-  return "Request failed."
+  return "请求失败。"
 }
 
 function mergeSavedSource(state: SourceLoadState, saved: AgentSource): SourceLoadState {

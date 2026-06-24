@@ -2,8 +2,8 @@
 
 import { Button } from "@heroui/react"
 import { Moon, Sun } from "lucide-react"
-import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
+import { useEffect, useState } from "react"
 
 export function ThemeSwitch() {
   const [mounted, setMounted] = useState(false)

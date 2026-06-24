@@ -1,7 +1,7 @@
 "use client"
 
 import type { AgentSource, SourcePresetMetadata } from "@agent-log-search/shared"
-import { Button } from "@heroui/react"
+import { Button, Modal, ModalBody, ModalContent, ModalHeader } from "@heroui/react"
 import { Plus } from "lucide-react"
 
 import { SourceForm } from "./source-form"
@@ -27,8 +27,11 @@ type SourceWorkspaceViewProps = {
   readonly deletingId: string | null
   readonly editingSource: AgentSource | null
   readonly formError: string | null
+  readonly isCreateOpen: boolean
   readonly loadState: SourceLoadState
+  readonly onCancelCreate: () => void
   readonly onCancelEdit: () => void
+  readonly onCreate: () => void
   readonly onDelete: (source: AgentSource) => void
   readonly onEdit: (source: AgentSource) => void
   readonly onRetry: () => void
@@ -43,14 +46,14 @@ type SourceWorkspaceViewProps = {
 
 export function SourceWorkspaceView(props: SourceWorkspaceViewProps) {
   if (props.loadState.kind === "loading") {
-    return <LoadingState description="Fetching source rows and presets." title="Loading sources" />
+    return <LoadingState description="正在获取数据源行和预设。" title="正在加载数据源" />
   }
   if (props.loadState.kind === "error") {
     return (
       <ErrorState
         description={props.loadState.message}
         onRetry={props.onRetry}
-        title="Sources unavailable"
+        title="数据源暂不可用"
       />
     )
   }
@@ -87,17 +90,18 @@ function SourceRows(props: SourceWorkspaceViewProps) {
         <EmptyState
           action={
             <Button
-              isDisabled
+              aria-label="从空状态创建数据源"
+              color="primary"
+              onPress={props.onCreate}
               radius="sm"
               size="sm"
               startContent={<Plus aria-hidden="true" className="size-4" />}
-              variant="flat"
             >
-              Create source from form
+              创建数据源
             </Button>
           }
-          description="Create a source from a preset, then run a manual scan to import sessions."
-          title="No sources configured"
+          description="创建数据源后，可以手动扫描并导入会话。"
+          title="尚未配置数据源"
         />
       ) : (
         <SourceTable
@@ -136,18 +140,50 @@ function EditWorkspace(props: EditWorkspaceProps) {
 }
 
 function CreateWorkspace(props: CreateWorkspaceProps) {
-  const { presets } = props.loadState
   return (
-    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+    <>
       <SourceRows {...props} />
-      <SourceForm
-        apiError={props.formError}
-        isSubmitting={props.submitting}
-        key="create"
-        mode="create"
-        onSubmit={props.onSubmit}
-        presets={presets.length > 0 ? presets : [firstPreset(presets)]}
-      />
-    </div>
+      <CreateSourceDialog {...props} />
+    </>
+  )
+}
+
+function CreateSourceDialog(props: CreateWorkspaceProps) {
+  const { presets } = props.loadState
+  if (!props.isCreateOpen) return null
+
+  return (
+    <Modal
+      isDismissable={!props.submitting}
+      isOpen={props.isCreateOpen}
+      onOpenChange={(open) => {
+        if (!open) props.onCancelCreate()
+      }}
+      scrollBehavior="inside"
+      size="2xl"
+    >
+      <ModalContent>
+        <ModalHeader className="flex flex-col gap-1">
+          <span>创建数据源</span>
+          <span className="text-xs font-normal text-[var(--app-muted)]">
+            选择预设后补齐路径和扫描参数，保存后即可运行扫描。
+          </span>
+        </ModalHeader>
+        <ModalBody className="pb-6">
+          <SourceForm
+            apiError={props.formError}
+            isSubmitting={props.submitting}
+            key="create-dialog"
+            layout="compact"
+            mode="create"
+            onCancel={props.onCancelCreate}
+            onSubmit={props.onSubmit}
+            presets={presets.length > 0 ? presets : [firstPreset(presets)]}
+            showHeader={false}
+            surface="plain"
+          />
+        </ModalBody>
+      </ModalContent>
+    </Modal>
   )
 }

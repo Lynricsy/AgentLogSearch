@@ -70,6 +70,31 @@ describe("createApiClient", () => {
                 matchedChunks: [
                   {
                     chunkId: "9",
+                    messageEndSequence: 2,
+                    messageStartSequence: 1,
+                    messages: [
+                      {
+                        createdAt: "2026-01-02T03:04:06.000Z",
+                        id: "10",
+                        model: "demo-agent-synthetic",
+                        parts: [
+                          { kind: "thinking", label: "思考", text: "先检查日志" },
+                          {
+                            kind: "assistant_response",
+                            label: "Agent 回复",
+                            text: "登录接口返回 500",
+                          },
+                        ],
+                        role: "assistant",
+                        seqNo: 1,
+                      },
+                    ],
+                    metadata: {
+                      agentName: "generic",
+                      cwd: "/workspace/clisearch-demo",
+                      part: null,
+                      threadId: "abc123",
+                    },
                     score: 0.91,
                     snippet: "登录接口返回 500",
                   },
@@ -95,6 +120,7 @@ describe("createApiClient", () => {
 
     expect(result.records[0]?.threadId).toBe("abc123")
     expect(result.records[0]?.matchedChunks[0]?.snippet).toContain("登录接口返回 500")
+    expect(result.records[0]?.matchedChunks[0]?.messages?.[0]?.parts[0]?.kind).toBe("thinking")
   })
 
   it("parses session detail responses with ordered messages", async () => {
@@ -116,6 +142,13 @@ describe("createApiClient", () => {
                 createdAt: "2026-01-02T03:04:06.000Z",
                 id: "10",
                 model: "demo-agent-synthetic",
+                parts: [
+                  {
+                    kind: "assistant_response",
+                    label: "Agent 回复",
+                    text: "登录接口返回 500",
+                  },
+                ],
                 role: "assistant",
                 seqNo: 1,
                 sessionId: "1",
@@ -135,6 +168,7 @@ describe("createApiClient", () => {
 
     expect(result.externalThreadId).toBe("abc123")
     expect(result.messages[0]?.content).toContain("登录接口返回 500")
+    expect(result.messages[0]?.parts?.[0]?.text).toContain("登录接口返回 500")
   })
 
   it("throws a typed API client error when the response contract is invalid", async () => {
@@ -147,7 +181,7 @@ describe("createApiClient", () => {
       client.searchSemantic({ query: "login", sessionLimit: 10, topK: 50 }),
     ).rejects.toMatchObject({
       code: "invalid_response",
-      message: "API response did not match the expected contract.",
+      message: "API 响应不符合预期契约。",
       name: ApiClientError.name,
       status: 0,
     })

@@ -2,7 +2,7 @@
 
 import { Button } from "@heroui/react"
 import type { LucideIcon } from "lucide-react"
-import { Database, ScanLine, Search, Settings } from "lucide-react"
+import { Database, ScanLine, Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
@@ -12,15 +12,13 @@ import { ThemeSwitch } from "./theme-switch"
 type NavItem = {
   readonly href: string
   readonly label: string
-  readonly status: "ready" | "future"
   readonly Icon: LucideIcon
 }
 
 const navItems = [
-  { href: "/search", label: "Search", status: "ready", Icon: Search },
-  { href: "/sources", label: "Sources", status: "ready", Icon: Database },
-  { href: "/scan-jobs", label: "Scan Jobs", status: "ready", Icon: ScanLine },
-  { href: "/settings", label: "Settings", status: "future", Icon: Settings },
+  { href: "/search", label: "搜索", Icon: Search },
+  { href: "/sources", label: "数据源", Icon: Database },
+  { href: "/scan-jobs", label: "扫描任务", Icon: ScanLine },
 ] as const satisfies readonly NavItem[]
 
 export function AppShell({ children }: { readonly children: ReactNode }) {
@@ -31,14 +29,11 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
           <div className="flex items-center justify-between gap-3 lg:block">
             <div>
               <p className="text-sm font-semibold">AgentLogSearch</p>
-              <p className="mt-1 text-xs text-[var(--app-muted)]">Local semantic history</p>
+              <p className="mt-1 text-xs text-[var(--app-muted)]">本地语义历史检索</p>
             </div>
-            <span className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-muted)] lg:mt-4 lg:inline-block">
-              localhost
-            </span>
           </div>
           <nav
-            aria-label="Primary navigation"
+            aria-label="主导航"
             className="mt-3 flex gap-2 overflow-x-auto lg:mt-6 lg:flex-col lg:gap-1 lg:overflow-visible"
           >
             {navItems.map((item) => (
@@ -57,21 +52,8 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
 
 function ShellNavLink({ item }: { readonly item: NavItem }) {
   const pathname = usePathname()
-  const isFuture = item.status === "future"
   const Icon = item.Icon
   const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-
-  if (isFuture) {
-    return (
-      <span className="flex min-w-max items-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm text-[var(--app-muted)] opacity-70">
-        <Icon aria-hidden="true" className="size-4 shrink-0" />
-        <span>{item.label}</span>
-        <span className="rounded border border-[var(--app-border)] px-1.5 py-0.5 text-[10px]">
-          soon
-        </span>
-      </span>
-    )
-  }
 
   return (
     <Button

@@ -33,13 +33,13 @@ export function parseSearchForm(state: SearchFormState): SearchParseResult {
   const sessionLimit = readInteger(state.sessionLimit)
 
   if (query.length === 0) {
-    errors.query = "Semantic query不能为空"
+    errors.query = "语义查询不能为空"
   } else if (query.length > SEMANTIC_SEARCH_DEFAULTS.maxQueryLength) {
-    errors.query = `Semantic query cannot exceed ${SEMANTIC_SEARCH_DEFAULTS.maxQueryLength} characters.`
+    errors.query = `语义查询不能超过 ${SEMANTIC_SEARCH_DEFAULTS.maxQueryLength} 个字符。`
   }
 
   if (topK === null || topK < 1 || topK > SEMANTIC_SEARCH_DEFAULTS.maxTopK) {
-    errors.topK = `Top K must be between 1 and ${SEMANTIC_SEARCH_DEFAULTS.maxTopK}.`
+    errors.topK = `召回片段数必须在 1 到 ${SEMANTIC_SEARCH_DEFAULTS.maxTopK} 之间。`
   }
 
   if (
@@ -47,7 +47,7 @@ export function parseSearchForm(state: SearchFormState): SearchParseResult {
     sessionLimit < 1 ||
     sessionLimit > SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit
   ) {
-    errors.sessionLimit = `Session limit must be between 1 and ${SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit}.`
+    errors.sessionLimit = `会话上限必须在 1 到 ${SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit} 之间。`
   }
 
   if (Object.keys(errors).length > 0) return { errors, ok: false }

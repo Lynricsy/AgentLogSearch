@@ -101,7 +101,7 @@ describe("createApiClient scan jobs", () => {
     // When / Then
     await expect(client.listScanJobs({ page: 1, pageSize: 20 })).rejects.toMatchObject({
       code: "invalid_response",
-      message: "API response did not match the expected contract.",
+      message: "API 响应不符合预期契约。",
       name: ApiClientError.name,
       status: 0,
     })

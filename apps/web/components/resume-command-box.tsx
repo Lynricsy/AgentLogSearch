@@ -42,16 +42,13 @@ export function ResumeCommandBox({ command, threadId }: ResumeCommandBoxProps) {
   }
 
   return (
-    <Card
-      className="border border-[var(--app-border)] bg-[var(--app-accent-soft)] p-3"
-      radius="sm"
-    >
+    <Card className="border border-[var(--app-border)] bg-[var(--app-accent-soft)] p-3" radius="sm">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-medium text-[var(--app-muted)]">Resume command</p>
+          <p className="text-xs font-medium text-[var(--app-muted)]">恢复命令</p>
           {command === null ? null : (
             <Button
-              aria-label={`Copy resume command for ${threadId}`}
+              aria-label={`复制 ${threadId} 的恢复命令`}
               onPress={copyCommand}
               radius="sm"
               size="sm"
@@ -64,7 +61,7 @@ export function ResumeCommandBox({ command, threadId }: ResumeCommandBoxProps) {
               }
               variant="flat"
             >
-              {copyState.kind === "copied" ? "Copied" : "Copy"}
+              {copyState.kind === "copied" ? "已复制" : "复制"}
             </Button>
           )}
         </div>
@@ -75,7 +72,7 @@ export function ResumeCommandBox({ command, threadId }: ResumeCommandBoxProps) {
           <div className="space-y-2">
             <p className="text-xs text-danger-700">{copyState.message}</p>
             <textarea
-              aria-label={`Manual resume command for ${threadId}`}
+              aria-label={`${threadId} 的手动恢复命令`}
               className="min-h-20 w-full resize-y rounded-md border border-danger-200 bg-white px-3 py-2 text-xs text-[var(--app-ink)] outline-none"
               id={fallbackId}
               readOnly
@@ -90,5 +87,5 @@ export function ResumeCommandBox({ command, threadId }: ResumeCommandBoxProps) {
 
 const fallbackState: Extract<CopyState, { readonly kind: "fallback" }> = {
   kind: "fallback",
-  message: "Clipboard unavailable. Select and copy the command manually.",
+  message: "剪贴板不可用，请手动选择并复制命令。",
 }

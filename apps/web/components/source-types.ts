@@ -11,6 +11,8 @@ import {
   type UpdateSourceRequest,
 } from "@agent-log-search/shared"
 
+import { formatDisplayName } from "./display-labels"
+
 export type SourceFormMode = "create" | "edit"
 
 export type SourceFormState = {
@@ -61,7 +63,7 @@ export function createFormStateFromSource(
   return {
     enabled: source.enabled,
     fileGlob: source.fileGlob,
-    name: source.name,
+    name: formatDisplayName(source.name, "未命名数据源"),
     parserType: source.parserType,
     presetId: matchingPreset?.id ?? "generic-jsonl",
     readerType: source.readerType,

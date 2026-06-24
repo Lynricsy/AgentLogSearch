@@ -12,7 +12,7 @@ import { SourceTable } from "./source-table"
 import { SourceWorkspace } from "./source-workspace"
 
 const timestamp = "2026-06-16T09:00:00.000Z"
-const scanIntervalError = "Scan interval must be an integer from 60 to 86400 seconds."
+const scanIntervalError = "扫描间隔必须是 60 到 86400 秒之间的整数。"
 const invalidCreateScanIntervalInputs = [
   "",
   "59",
@@ -44,7 +44,7 @@ describe("source scan interval UI", () => {
       />,
     )
 
-    expect(screen.getByText("15 min")).toBeVisible()
+    expect(screen.getByText("15 分钟")).toBeVisible()
   })
 
   it("keeps an existing non-default scan interval when saving edits", async () => {
@@ -60,9 +60,9 @@ describe("source scan interval UI", () => {
     render(<SourceWorkspace client={client} />)
 
     await screen.findByText("Demo source")
-    fireEvent.click(screen.getByRole("button", { name: "Edit Demo source" }))
-    expect(firstLabeled("Scan interval seconds")).toHaveValue(600)
-    fireEvent.click(screen.getByRole("button", { name: "Save source" }))
+    fireEvent.click(screen.getByRole("button", { name: "编辑 Demo source" }))
+    expect(firstLabeled("扫描间隔秒数")).toHaveValue(600)
+    fireEvent.click(screen.getByRole("button", { name: "保存数据源" }))
 
     await waitFor(() => {
       expect(capturedPayload).toEqual(expect.objectContaining({ scanIntervalSeconds: 600 }))
@@ -81,16 +81,17 @@ describe("source scan interval UI", () => {
       })
       render(<SourceWorkspace client={client} />)
 
-      await screen.findByText("No sources configured")
-      fireEvent.change(firstLabeled("Source name"), {
+      await screen.findByText("尚未配置数据源")
+      openCreateDialog()
+      fireEvent.change(firstLabeled("数据源名称"), {
         target: { value: "Invalid interval source" },
       })
-      fireEvent.change(firstLabeled("Scan interval seconds"), {
+      fireEvent.change(firstLabeled("扫描间隔秒数"), {
         target: { value: scanIntervalSeconds },
       })
-      fireEvent.click(screen.getByRole("button", { name: "Create source" }))
+      fireEvent.click(screen.getByRole("button", { name: "创建数据源" }))
 
-      expect(await screen.findByText(scanIntervalError)).toBeVisible()
+      expect(await screen.findByText(scanIntervalError)).toBeInTheDocument()
       expect(createCalls).toBe(0)
     },
   )
@@ -110,11 +111,11 @@ describe("source scan interval UI", () => {
       render(<SourceWorkspace client={client} />)
 
       await screen.findByText("Demo source")
-      fireEvent.click(screen.getByRole("button", { name: "Edit Demo source" }))
-      fireEvent.change(firstLabeled("Scan interval seconds"), {
+      fireEvent.click(screen.getByRole("button", { name: "编辑 Demo source" }))
+      fireEvent.change(firstLabeled("扫描间隔秒数"), {
         target: { value: scanIntervalSeconds },
       })
-      fireEvent.click(screen.getByRole("button", { name: "Save source" }))
+      fireEvent.click(screen.getByRole("button", { name: "保存数据源" }))
 
       expect(await screen.findByText(scanIntervalError)).toBeVisible()
       expect(updateCalls).toBe(0)
@@ -183,4 +184,8 @@ function firstLabeled(name: string): HTMLElement {
     throw new Error(`Missing field: ${name}`)
   }
   return element
+}
+
+function openCreateDialog() {
+  fireEvent.click(screen.getByRole("button", { name: "打开创建数据源对话框" }))
 }

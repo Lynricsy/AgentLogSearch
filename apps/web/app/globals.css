@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS v4 uses @config to load legacy config sources. */
+@config "../tailwind.config.mjs";
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS v4 uses @source to scan HeroUI theme utilities. */
+@source "../../../node_modules/.pnpm/@heroui+theme@2.4.26_tailwindcss@4.3.1/node_modules/@heroui/theme/dist/components";
 /* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind CSS v4 uses @plugin to load the HeroUI theme plugin. */
 @plugin "../hero.ts";
 
@@ -64,4 +68,179 @@ input {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.markdown-content {
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content p,
+.markdown-content ul,
+.markdown-content ol,
+.markdown-content blockquote,
+.markdown-content pre,
+.markdown-content table,
+.markdown-content .katex-display,
+.markdown-content .mermaid-diagram,
+.markdown-content .mermaid-loading,
+.markdown-content .mermaid-fallback {
+  margin: 0.65rem 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  margin: 0.8rem 0 0.45rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.markdown-content h1 {
+  font-size: 1.15rem;
+}
+
+.markdown-content h2 {
+  font-size: 1.05rem;
+}
+
+.markdown-content h3,
+.markdown-content h4 {
+  font-size: 0.98rem;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.35rem;
+}
+
+.markdown-content ul {
+  list-style: disc;
+}
+
+.markdown-content ol {
+  list-style: decimal;
+}
+
+.markdown-content li + li {
+  margin-top: 0.25rem;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid currentColor;
+  padding-left: 0.75rem;
+  opacity: 0.82;
+}
+
+.markdown-content a {
+  color: var(--app-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.markdown-content code {
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  padding: 0.08rem 0.28rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+
+.markdown-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  padding: 0.75rem;
+}
+
+.markdown-content pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+.markdown-content th {
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  font-weight: 700;
+}
+
+.markdown-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2rem 0;
+}
+
+.markdown-content .mermaid-diagram,
+.markdown-content .mermaid-fallback {
+  overflow-x: auto;
+}
+
+.markdown-content .mermaid-diagram {
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, white 72%, transparent);
+  padding: 0.75rem;
+}
+
+:root[class~="dark"] .markdown-content .mermaid-diagram {
+  background: color-mix(in srgb, black 18%, transparent);
+}
+
+.markdown-content .mermaid-diagram svg {
+  height: auto;
+  max-width: 100%;
+}
+
+.markdown-content .mermaid-loading {
+  min-height: 5rem;
+  border: 1px dashed color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.collapsible-part-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 180ms ease,
+    opacity 160ms ease;
+}
+
+.collapsible-part[data-open="true"] .collapsible-part-content {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsible-part-content {
+    transition: none;
+  }
 }

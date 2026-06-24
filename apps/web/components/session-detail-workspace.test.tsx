@@ -16,14 +16,30 @@ const baseSession: AgentSessionDetail = {
   messageCount: 5,
   messages: [
     createMessage({
-      content: "生产环境登录接口返回 500，用户无法登录，请帮我排查。",
+      content: "**生产环境登录接口** 返回 500，用户无法登录，请帮我排查。",
       id: "message-user",
+      parts: [
+        {
+          kind: "text",
+          label: "用户",
+          text: "**生产环境登录接口** 返回 500，用户无法登录，请帮我排查。",
+        },
+      ],
       role: "user",
       seqNo: 1,
     }),
     createMessage({
       content: "已定位到登录接口返回 500 的原因。",
       id: "message-assistant",
+      parts: [
+        { kind: "thinking", label: "思考", text: "先复核登录接口最近一次堆栈。" },
+        {
+          kind: "assistant_response",
+          label: "Agent 回复",
+          text: "已定位到 **登录接口返回 500** 的原因。",
+        },
+        { kind: "tool_call", label: "工具调用", text: "command=rg login apps/api" },
+      ],
       role: "assistant",
       seqNo: 2,
     }),
@@ -81,15 +97,32 @@ describe("SessionDetailWorkspace", () => {
     )
 
     expect(await screen.findByText("登录接口 500 修复演示")).toBeVisible()
-    expect(screen.getByText("user")).toBeVisible()
-    expect(screen.getByText("assistant")).toBeVisible()
-    expect(screen.getByText("tool")).toBeVisible()
-    expect(screen.getByText("system")).toBeVisible()
-    expect(screen.getByText("unknown")).toBeVisible()
+    expect(screen.queryByText(/\/sessions/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/GET/i)).not.toBeInTheDocument()
+    expect(screen.getByText("用户")).toBeVisible()
+    expect(screen.getByText("助手")).toBeVisible()
+    expect(screen.getByText("工具")).toBeVisible()
+    expect(screen.getByText("系统")).toBeVisible()
+    expect(screen.getAllByText("未知").length).toBeGreaterThan(0)
+    expect(screen.getByText("生产环境登录接口")).toBeVisible()
+    const thinkingToggle = screen.getByLabelText("思考，点击展开")
+    const toolCallToggle = screen.getByLabelText("工具调用，点击展开")
+    expect(thinkingToggle).toBeVisible()
+    expect(thinkingToggle).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByTestId("message-part-assistant_response")).toBeVisible()
+    expect(toolCallToggle).toBeVisible()
+    expect(toolCallToggle).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByText("登录接口返回 500")).toBeVisible()
+    fireEvent.click(thinkingToggle)
+    expect(thinkingToggle).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByText("先复核登录接口最近一次堆栈。")).toBeInTheDocument()
+    fireEvent.click(toolCallToggle)
+    expect(toolCallToggle).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByText("command=rg login apps/api")).toBeInTheDocument()
     expect(screen.getByTestId("message-bubble-user")).toHaveClass("justify-end")
     expect(screen.getByTestId("message-bubble-assistant")).toHaveClass("justify-start")
     expect(screen.getByTestId("message-bubble-tool")).toHaveClass("justify-center")
-    expect(screen.getByText("generic")).toBeVisible()
+    expect(screen.getByText("通用")).toBeVisible()
     expect(screen.getByText("abc123")).toBeVisible()
     expect(screen.getByText("/workspace/clisearch-demo")).toBeVisible()
     expect(screen.getByText("5")).toBeVisible()
@@ -98,12 +131,12 @@ describe("SessionDetailWorkspace", () => {
       screen.getByText("cd '/workspace/clisearch-demo' && codex resume 'abc123'"),
     ).toBeVisible()
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy resume command for abc123" }))
+    fireEvent.click(screen.getByRole("button", { name: "复制 abc123 的恢复命令" }))
 
     await waitFor(() => {
       expect(writes).toEqual(["cd '/workspace/clisearch-demo' && codex resume 'abc123'"])
     })
-    expect(screen.getByText("Copied")).toBeVisible()
+    expect(screen.getByText("已复制")).toBeVisible()
   })
 
   it("renders missing resume command as unavailable without enabling copy", async () => {
@@ -116,9 +149,9 @@ describe("SessionDetailWorkspace", () => {
       />,
     )
 
-    expect(await screen.findByText("Resume command")).toBeVisible()
+    expect(await screen.findByText("恢复命令")).toBeVisible()
     expect(screen.getByText("未记录")).toBeVisible()
-    expect(screen.queryByRole("button", { name: "Copy resume command for abc123" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "复制 abc123 的恢复命令" })).toBeNull()
   })
 
   it("shows an API error state for malformed or missing sessions", async () => {
@@ -137,8 +170,23 @@ describe("SessionDetailWorkspace", () => {
       />,
     )
 
-    expect(await screen.findByText("Session unavailable")).toBeVisible()
+    expect(await screen.findByText("会话暂不可用")).toBeVisible()
     expect(screen.getByText("Session not found.")).toBeVisible()
+  })
+
+  it("cleans internal session titles in the page header", async () => {
+    const rawTitle = "Live Claude History tool_result filtered 1782035200000"
+    render(
+      <SessionDetailWorkspace
+        client={createClient({
+          getSession: async () => ({ ...baseSession, title: rawTitle }),
+        })}
+        sessionId="session-1"
+      />,
+    )
+
+    expect(await screen.findByText("Claude")).toBeVisible()
+    expect(screen.queryByText(rawTitle)).not.toBeInTheDocument()
   })
 
   it("does not let a stale session response replace the newest session", async () => {

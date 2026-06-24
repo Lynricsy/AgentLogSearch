@@ -9,7 +9,6 @@ import { type ApiClient, ApiClientError, apiClient } from "../lib/api"
 import { PageHeader } from "./page-header"
 import { ScanJobsTable } from "./scan-jobs-table"
 import { EmptyState, ErrorState, LoadingState } from "./state-block"
-import { StatusBadge } from "./status-badge"
 
 const PAGE_SIZE = 20
 
@@ -51,28 +50,25 @@ export function ScanJobsWorkspace({ client = apiClient }: ScanJobsWorkspaceProps
   }, [load])
 
   return (
-    <section aria-label="Scan jobs workspace" className="space-y-5">
+    <section aria-label="扫描任务工作区" className="space-y-5">
       <PageHeader
         actions={
           <div className="flex flex-wrap gap-2">
-            <StatusBadge tone={state.kind === "ready" ? "success" : "neutral"}>
-              GET {client.baseUrl}/scan-jobs
-            </StatusBadge>
             <Button
-              aria-label="Refresh scan jobs"
+              aria-label="刷新扫描任务"
               onPress={() => load(currentPage(state))}
               radius="sm"
               size="sm"
               startContent={<RefreshCw aria-hidden="true" className="size-4" />}
               variant="bordered"
             >
-              Refresh
+              刷新
             </Button>
           </div>
         }
-        eyebrow="Scan jobs"
-        subtitle="Review scanner runs, source metadata, import counts, and truncated failure summaries."
-        title="Scan Jobs"
+        eyebrow="扫描任务"
+        subtitle="查看扫描运行记录、数据源元数据、导入计数和折叠后的失败摘要。"
+        title="扫描任务"
       />
       <ScanJobsContent
         onPageChange={load}
@@ -96,18 +92,18 @@ function ScanJobsContent({
   readonly onSelectTab: (tab: StatusFilter) => void
 }) {
   if (state.kind === "loading") {
-    return <LoadingState description="Fetching scan job history." title="Loading scan jobs" />
+    return <LoadingState description="正在获取扫描任务历史。" title="正在加载扫描任务" />
   }
 
   if (state.kind === "error") {
-    return <ErrorState description={state.message} title="Scan jobs unavailable" />
+    return <ErrorState description={state.message} title="扫描任务暂不可用" />
   }
 
   if (state.page.items.length === 0) {
     return (
       <EmptyState
-        description="Run a manual scan from Sources to create scan job history."
-        title="No scan jobs yet"
+        description="在数据源页面运行手动扫描后，这里会出现扫描任务历史。"
+        title="还没有扫描任务"
       />
     )
   }
@@ -118,26 +114,23 @@ function ScanJobsContent({
   return (
     <div className="space-y-3">
       <Tabs
-        aria-label="Scan jobs status filter"
+        aria-label="扫描任务状态筛选"
         color="primary"
         selectedKey={selectedTab}
         variant="underlined"
         onSelectionChange={(key) => onSelectTab(key as StatusFilter)}
       >
-        <Tab key="all" title="All" />
-        <Tab key="running" title="Running" />
-        <Tab key="completed" title="Completed" />
-        <Tab key="failed" title="Failed" />
+        <Tab key="all" title="全部" />
+        <Tab key="running" title="进行中" />
+        <Tab key="completed" title="已完成" />
+        <Tab key="failed" title="失败" />
       </Tabs>
       <ScanJobsTable onPageChange={onPageChange} page={filteredPage} />
     </div>
   )
 }
 
-function filterByStatus(
-  items: readonly ScanJob[],
-  filter: StatusFilter,
-): readonly ScanJob[] {
+function filterByStatus(items: readonly ScanJob[], filter: StatusFilter): readonly ScanJob[] {
   if (filter === "all") return items
   if (filter === "running") {
     return items.filter((job) => job.status === "running" || job.status === "queued")
@@ -148,7 +141,7 @@ function filterByStatus(
 function describeError(error: unknown): string {
   if (error instanceof ApiClientError) return error.message
   if (error instanceof Error) return error.message
-  return "Scan jobs request failed."
+  return "扫描任务请求失败。"
 }
 
 function currentPage(state: ScanJobsState): number {

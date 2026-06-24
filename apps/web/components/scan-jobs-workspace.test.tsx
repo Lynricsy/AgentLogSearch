@@ -27,7 +27,7 @@ describe("ScanJobsWorkspace", () => {
     render(<ScanJobsWorkspace client={client} />)
 
     // Then
-    expect(await screen.findByText("Loading scan jobs")).toBeVisible()
+    expect(await screen.findByText("正在加载扫描任务")).toBeVisible()
   })
 
   it("shows empty state when the API returns no scan jobs", async () => {
@@ -38,7 +38,7 @@ describe("ScanJobsWorkspace", () => {
     render(<ScanJobsWorkspace client={client} />)
 
     // Then
-    expect(await screen.findByText("No scan jobs yet")).toBeVisible()
+    expect(await screen.findByText("还没有扫描任务")).toBeVisible()
   })
 
   it("shows API error state without stale rows", async () => {
@@ -61,10 +61,10 @@ describe("ScanJobsWorkspace", () => {
 
     // When
     shouldFail = true
-    fireEvent.click(screen.getByRole("button", { name: "Refresh scan jobs" }))
+    fireEvent.click(screen.getByRole("button", { name: "刷新扫描任务" }))
 
     // Then
-    expect(await screen.findByText("Scan jobs unavailable")).toBeVisible()
+    expect(await screen.findByText("扫描任务暂不可用")).toBeVisible()
     expect(screen.getByText("Scan jobs endpoint unavailable.")).toBeVisible()
     expect(screen.queryByText("Demo source")).not.toBeInTheDocument()
   })
@@ -80,10 +80,12 @@ describe("ScanJobsWorkspace", () => {
     render(<ScanJobsWorkspace client={client} />)
 
     // Then
-    expect(await screen.findByText("failed")).toBeVisible()
+    expect((await screen.findAllByText("失败")).length).toBeGreaterThan(0)
     expect(screen.getByText("Demo source")).toBeVisible()
-    expect(screen.getByText("generic")).toBeVisible()
-    expect(screen.getByText("generic-jsonl")).toBeVisible()
+    expect(screen.queryByText(/\/scan-jobs/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/GET/i)).not.toBeInTheDocument()
+    expect(screen.getByText("通用")).toBeVisible()
+    expect(screen.getByText("通用 JSONL")).toBeVisible()
     expect(screen.getByText(formatDateTime(startedAt))).toBeVisible()
     expect(screen.getByText(formatDateTime(finishedAt))).toBeVisible()
     expect(screen.getByText("3")).toBeVisible()
@@ -91,6 +93,13 @@ describe("ScanJobsWorkspace", () => {
     expect(screen.getByText("1")).toBeVisible()
     expect(screen.getByText("2 / 8")).toBeVisible()
     expect(screen.getByText("4")).toBeVisible()
+    const summaryRows = screen.getAllByTestId("scan-summary-row")
+    expect(summaryRows).toHaveLength(5)
+    expect(summaryRows[0]).toHaveClass("bg-sky-50")
+    expect(summaryRows[1]).toHaveClass("bg-emerald-50")
+    expect(summaryRows[2]).toHaveClass("bg-rose-50")
+    expect(summaryRows[3]).toHaveClass("bg-amber-50")
+    expect(summaryRows[4]).toHaveClass("bg-violet-50")
     expect(screen.getByText(/^Sensitive parser failure body/)).toBeVisible()
     expect(screen.queryByText(fullErrorMatcher)).not.toBeInTheDocument()
   })
@@ -111,18 +120,18 @@ describe("ScanJobsWorkspace", () => {
       },
     })
     render(<ScanJobsWorkspace client={client} />)
-    expect(await screen.findByText("Page 1 of 3")).toBeVisible()
-    expect(screen.getByRole("button", { name: "Previous scan jobs page" })).toBeDisabled()
+    expect(await screen.findByText("第 1 页，共 3 页")).toBeVisible()
+    expect(screen.getByRole("button", { name: "上一页扫描任务" })).toBeDisabled()
 
     // When
-    fireEvent.click(screen.getByRole("button", { name: "Next scan jobs page" }))
-    await screen.findByText("Page 2 of 3")
-    fireEvent.click(screen.getByRole("button", { name: "Next scan jobs page" }))
-    await screen.findByText("Page 3 of 3")
-    fireEvent.click(screen.getByRole("button", { name: "Previous scan jobs page" }))
+    fireEvent.click(screen.getByRole("button", { name: "下一页扫描任务" }))
+    await screen.findByText("第 2 页，共 3 页")
+    fireEvent.click(screen.getByRole("button", { name: "下一页扫描任务" }))
+    await screen.findByText("第 3 页，共 3 页")
+    fireEvent.click(screen.getByRole("button", { name: "上一页扫描任务" }))
 
     // Then
-    expect(await screen.findByText("Page 2 of 3")).toBeVisible()
+    expect(await screen.findByText("第 2 页，共 3 页")).toBeVisible()
     expect(calls).toEqual([
       { page: 1, pageSize: 20 },
       { page: 2, pageSize: 20 },
@@ -146,11 +155,61 @@ describe("ScanJobsWorkspace", () => {
 
     // When
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "View error details for scan job 77" }))
+      fireEvent.click(screen.getByRole("button", { name: "查看扫描任务 77 的错误详情" }))
     })
 
     // Then
     expect(screen.getByText(fullErrorMatcher)).toBeVisible()
+  })
+
+  it("cleans internal source names in scan job rows", async () => {
+    // Given
+    const rawName = "Live Claude History tool_result filtered 1782035200000"
+    const client = createClient({
+      listScanJobs: async () =>
+        pageResponse([
+          createScanJob({
+            source: {
+              id: "12",
+              name: rawName,
+              parserType: "generic-jsonl",
+              sourcePreset: "generic",
+            },
+          }),
+        ]),
+    })
+
+    // When
+    render(<ScanJobsWorkspace client={client} />)
+
+    // Then
+    expect(await screen.findByText("Claude")).toBeVisible()
+    expect(screen.queryByText(rawName)).not.toBeInTheDocument()
+  })
+
+  it("cleans demo fixture names in scan job rows", async () => {
+    // Given
+    const rawName = "F3 demo-agent 2026-06-18T05:38:30.129Z"
+    const client = createClient({
+      listScanJobs: async () =>
+        pageResponse([
+          createScanJob({
+            source: {
+              id: "12",
+              name: rawName,
+              parserType: "generic-jsonl",
+              sourcePreset: "generic",
+            },
+          }),
+        ]),
+    })
+
+    // When
+    render(<ScanJobsWorkspace client={client} />)
+
+    // Then
+    expect(await screen.findByText("F3")).toBeVisible()
+    expect(screen.queryByText(rawName)).not.toBeInTheDocument()
   })
 })
 

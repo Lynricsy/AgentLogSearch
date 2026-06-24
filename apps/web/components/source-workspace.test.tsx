@@ -6,7 +6,7 @@ import {
   type SourcePresetMetadata,
   type UpdateSourceRequest,
 } from "@agent-log-search/shared"
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest"
 
 import { type ApiClient, ApiClientError } from "../lib/api"
@@ -49,15 +49,17 @@ describe("SourceWorkspace", () => {
       const preset = findPreset(presetId)
       render(<SourceWorkspace client={createClient()} />)
 
-      await screen.findByText("No sources configured")
-      fireEvent.change(firstLabeled("Preset"), { target: { value: preset.id } })
+      await screen.findByText("尚未配置数据源")
+      expect(screen.queryByText(/\/sources/i)).not.toBeInTheDocument()
+      openCreateDialog()
+      fireEvent.change(firstLabeled("预设"), { target: { value: preset.id } })
 
-      expect(firstLabeled("Preset")).toHaveValue(preset.id)
-      expect(firstLabeled("Root path")).toHaveValue(preset.rootPath)
-      expect(firstLabeled("File glob")).toHaveValue(preset.fileGlob)
-      expect(firstLabeled("Parser type")).toHaveValue(preset.parserType)
-      expect(firstLabeled("Reader type")).toHaveValue(preset.readerType)
-      expect(firstLabeled("Resume template")).toHaveValue(preset.resumeTemplate)
+      expect(firstLabeled("预设")).toHaveValue(preset.id)
+      expect(firstLabeled("根路径")).toHaveValue(preset.rootPath)
+      expect(firstLabeled("文件匹配规则")).toHaveValue(preset.fileGlob)
+      expect(firstLabeled("解析器类型")).toHaveValue(preset.parserType)
+      expect(firstLabeled("读取器类型")).toHaveValue(preset.readerType)
+      expect(firstLabeled("恢复命令模板")).toHaveValue(preset.resumeTemplate)
     },
   )
 
@@ -73,19 +75,22 @@ describe("SourceWorkspace", () => {
     })
     render(<SourceWorkspace client={client} />)
 
-    await screen.findByText("No sources configured")
-    fireEvent.change(firstLabeled("Root path"), { target: { value: "" } })
-    fireEvent.click(screen.getByRole("button", { name: "Create source" }))
+    await screen.findByText("尚未配置数据源")
+    openCreateDialog()
+    fireEvent.change(firstLabeled("根路径"), { target: { value: "" } })
+    fireEvent.click(screen.getByRole("button", { name: "创建数据源" }))
 
-    expect(await screen.findByText("Root path must be absolute or home-relative.")).toBeVisible()
+    expect(
+      await screen.findByText("根路径必须是绝对路径或以 ~ 开头的主目录路径。"),
+    ).toBeInTheDocument()
 
-    fireEvent.change(firstLabeled("Source name"), {
+    fireEvent.change(firstLabeled("数据源名称"), {
       target: { value: "Broken source" },
     })
-    fireEvent.change(firstLabeled("Root path"), {
+    fireEvent.change(firstLabeled("根路径"), {
       target: { value: "/missing/path" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create source" }))
+    fireEvent.click(screen.getByRole("button", { name: "创建数据源" }))
 
     await waitFor(() => {
       expect(screen.getByText("Source root path does not exist.")).toBeVisible()
@@ -99,14 +104,26 @@ describe("SourceWorkspace", () => {
     })
     render(<SourceWorkspace client={client} />)
 
-    await screen.findByText("No sources configured")
-    fireEvent.change(firstLabeled("Source name"), {
+    await screen.findByText("尚未配置数据源")
+    openCreateDialog()
+    fireEvent.change(firstLabeled("数据源名称"), {
       target: { value: "Created source" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create source" }))
+    fireEvent.click(screen.getByRole("button", { name: "创建数据源" }))
 
     expect(await screen.findByText("Created source")).toBeVisible()
     expect(screen.getByText("/tmp/demo-agent")).toBeVisible()
+  })
+
+  it("opens creation fields in a dialog", async () => {
+    render(<SourceWorkspace client={createClient()} />)
+
+    await screen.findByText("尚未配置数据源")
+    openCreateDialog()
+
+    const dialog = await screen.findByRole("dialog", { name: /创建数据源/ })
+    expect(within(dialog).getByLabelText("数据源名称")).toBeInTheDocument()
+    expect(within(dialog).getByRole("button", { name: "取消" })).toBeInTheDocument()
   })
 
   it("preserves non-default scan interval when saving edits", async () => {
@@ -122,11 +139,11 @@ describe("SourceWorkspace", () => {
     render(<SourceWorkspace client={client} />)
 
     await screen.findByText("Demo source")
-    fireEvent.click(screen.getByRole("button", { name: "Edit Demo source" }))
-    fireEvent.change(firstLabeled("Source name"), {
+    fireEvent.click(screen.getByRole("button", { name: "编辑 Demo source" }))
+    fireEvent.change(firstLabeled("数据源名称"), {
       target: { value: "Renamed source" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Save source" }))
+    fireEvent.click(screen.getByRole("button", { name: "保存数据源" }))
 
     expect(await screen.findByText("Renamed source")).toBeVisible()
     expect(capturedPayload).toEqual(expect.objectContaining({ scanIntervalSeconds: 600 }))
@@ -140,12 +157,12 @@ describe("SourceWorkspace", () => {
     render(<SourceWorkspace client={client} />)
 
     await screen.findByText("Demo source")
-    fireEvent.click(screen.getByRole("button", { name: "Delete Demo source" }))
+    fireEvent.click(screen.getByRole("button", { name: "删除 Demo source" }))
 
     await waitFor(() => {
       expect(screen.queryByText("Demo source")).not.toBeInTheDocument()
     })
-    expect(screen.getByText("No sources configured")).toBeVisible()
+    expect(screen.getByText("尚未配置数据源")).toBeVisible()
   })
 
   it("updates the enabled checkbox after toggling a source", async () => {
@@ -161,12 +178,41 @@ describe("SourceWorkspace", () => {
     render(<SourceWorkspace client={client} />)
 
     await screen.findByText("Demo source")
-    fireEvent.click(screen.getByRole("switch", { name: "Toggle Demo source" }))
+    fireEvent.click(screen.getByRole("switch", { name: "切换 Demo source" }))
 
     await waitFor(() => {
       expect(capturedPayload).toEqual({ enabled: false })
     })
-    expect(screen.getByRole("switch", { name: "Toggle Demo source" })).not.toBeChecked()
+    expect(screen.getByRole("switch", { name: "切换 Demo source" })).not.toBeChecked()
+  })
+
+  it("cleans internal source names in rows, controls, and edit forms", async () => {
+    const rawName = "Live Claude History tool_result filtered 1782035200000"
+    const existingSource = createSource({ id: "clean-name", name: rawName })
+    const client = createClient({
+      listSources: async () => [existingSource],
+    })
+    render(<SourceWorkspace client={client} />)
+
+    expect(await screen.findByText("Claude")).toBeVisible()
+    expect(screen.queryByText(rawName)).not.toBeInTheDocument()
+    expect(screen.getByRole("switch", { name: "切换 Claude" })).toBeVisible()
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑 Claude" }))
+
+    expect(firstLabeled("数据源名称")).toHaveValue("Claude")
+  })
+
+  it("cleans demo fixture names in source rows", async () => {
+    const rawName = "F3 demo-agent 2026-06-18T05:38:30.129Z"
+    const existingSource = createSource({ id: "demo-name", name: rawName })
+    const client = createClient({
+      listSources: async () => [existingSource],
+    })
+    render(<SourceWorkspace client={client} />)
+
+    expect(await screen.findByText("F3")).toBeVisible()
+    expect(screen.queryByText(rawName)).not.toBeInTheDocument()
   })
 
   it("shows manual scan success and refreshes the source row", async () => {
@@ -190,15 +236,15 @@ describe("SourceWorkspace", () => {
     render(<SourceWorkspace client={client} />)
 
     await screen.findByText("Demo source")
-    expect(screen.getByText("never")).toBeVisible()
-    fireEvent.click(screen.getByRole("button", { name: "Scan Demo source" }))
+    expect(screen.getByText("从未扫描")).toBeVisible()
+    fireEvent.click(screen.getByRole("button", { name: "扫描 Demo source" }))
 
-    expect(await screen.findByText("Running")).toBeVisible()
+    expect(await screen.findByText("扫描中")).toBeVisible()
     await act(async () => {
       resolveRun(createScanRunResponse("scan-me"))
     })
 
-    expect(await screen.findByText("Scan completed")).toBeVisible()
+    expect(await screen.findByText("扫描已完成")).toBeVisible()
     expect(await screen.findByText(formatLastScan(refreshedAt))).toBeVisible()
   })
 })
@@ -279,4 +325,8 @@ function firstLabeled(name: string): HTMLElement {
     throw new Error(`Missing field: ${name}`)
   }
   return element
+}
+
+function openCreateDialog() {
+  fireEvent.click(screen.getByRole("button", { name: "打开创建数据源对话框" }))
 }

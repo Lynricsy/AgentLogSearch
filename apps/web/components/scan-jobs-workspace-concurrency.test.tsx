@@ -33,11 +33,11 @@ describe("ScanJobsWorkspace request ordering", () => {
       },
     })
     render(<ScanJobsWorkspace client={client} />)
-    expect(await screen.findByText("Page 1 of 2")).toBeVisible()
+    expect(await screen.findByText("第 1 页，共 2 页")).toBeVisible()
 
     // When
-    fireEvent.click(screen.getByRole("button", { name: "Refresh scan jobs" }))
-    fireEvent.click(screen.getByRole("button", { name: "Next scan jobs page" }))
+    fireEvent.click(screen.getByRole("button", { name: "刷新扫描任务" }))
+    fireEvent.click(screen.getByRole("button", { name: "下一页扫描任务" }))
     await act(async () => {
       pageTwoLoad.resolve(
         pageResponse([createScanJob({ id: "job-2" })], { page: 2, totalPages: 2 }),
@@ -46,7 +46,7 @@ describe("ScanJobsWorkspace request ordering", () => {
     })
 
     // Then
-    expect(await screen.findByText("Page 2 of 2")).toBeVisible()
+    expect(await screen.findByText("第 2 页，共 2 页")).toBeVisible()
 
     // When
     await act(async () => {
@@ -57,8 +57,8 @@ describe("ScanJobsWorkspace request ordering", () => {
     })
 
     // Then
-    expect(screen.getByText("Page 2 of 2")).toBeVisible()
-    expect(screen.queryByText("Page 1 of 2")).not.toBeInTheDocument()
+    expect(screen.getByText("第 2 页，共 2 页")).toBeVisible()
+    expect(screen.queryByText("第 1 页，共 2 页")).not.toBeInTheDocument()
   })
 })
 

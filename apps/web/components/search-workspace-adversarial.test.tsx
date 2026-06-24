@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import type { ApiClient } from "../lib/api"
 import { SearchWorkspace } from "./search-workspace"
 
-type FieldLabel = "CWD keyword" | "Agent filter" | "Semantic query" | "Session limit" | "Top K"
+type FieldLabel = "Agent 筛选" | "会话上限" | "工作目录关键词" | "召回片段数" | "语义查询"
 
 type MalformedCase = {
   readonly expectedError: string
@@ -21,38 +21,38 @@ type MalformedCase = {
 
 const malformedCases = [
   {
-    expectedError: `Semantic query cannot exceed ${SEMANTIC_SEARCH_DEFAULTS.maxQueryLength} characters.`,
-    fieldLabel: "Semantic query",
+    expectedError: `语义查询不能超过 ${SEMANTIC_SEARCH_DEFAULTS.maxQueryLength} 个字符。`,
+    fieldLabel: "语义查询",
     name: "an overlong query",
     value: "q".repeat(SEMANTIC_SEARCH_DEFAULTS.maxQueryLength + 1),
   },
   {
-    expectedError: `Top K must be between 1 and ${SEMANTIC_SEARCH_DEFAULTS.maxTopK}.`,
-    fieldLabel: "Top K",
+    expectedError: `召回片段数必须在 1 到 ${SEMANTIC_SEARCH_DEFAULTS.maxTopK} 之间。`,
+    fieldLabel: "召回片段数",
     name: "a non-integer Top K",
     value: "1.5",
   },
   {
-    expectedError: `Top K must be between 1 and ${SEMANTIC_SEARCH_DEFAULTS.maxTopK}.`,
-    fieldLabel: "Top K",
+    expectedError: `召回片段数必须在 1 到 ${SEMANTIC_SEARCH_DEFAULTS.maxTopK} 之间。`,
+    fieldLabel: "召回片段数",
     name: "zero Top K",
     value: "0",
   },
   {
-    expectedError: `Session limit must be between 1 and ${SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit}.`,
-    fieldLabel: "Session limit",
+    expectedError: `会话上限必须在 1 到 ${SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit} 之间。`,
+    fieldLabel: "会话上限",
     name: "a non-integer session limit",
     value: "2.5",
   },
   {
-    expectedError: `Session limit must be between 1 and ${SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit}.`,
-    fieldLabel: "Session limit",
+    expectedError: `会话上限必须在 1 到 ${SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit} 之间。`,
+    fieldLabel: "会话上限",
     name: "zero session limit",
     value: "0",
   },
   {
-    expectedError: `Session limit must be between 1 and ${SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit}.`,
-    fieldLabel: "Session limit",
+    expectedError: `会话上限必须在 1 到 ${SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit} 之间。`,
+    fieldLabel: "会话上限",
     name: "a session limit above the maximum",
     value: String(SEMANTIC_SEARCH_DEFAULTS.maxSessionLimit + 1),
   },
@@ -109,12 +109,12 @@ describe("SearchWorkspace adversarial input handling", () => {
         />,
       )
 
-      if (fieldLabel !== "Semantic query") {
-        fireEvent.change(screen.getByLabelText("Semantic query"), { target: { value: "login" } })
+      if (fieldLabel !== "语义查询") {
+        fireEvent.change(screen.getByLabelText("语义查询"), { target: { value: "login" } })
       }
       const field = screen.getByLabelText(fieldLabel)
       fireEvent.change(field, { target: { value } })
-      fireEvent.click(screen.getByRole("button", { name: "Search" }))
+      fireEvent.click(screen.getByRole("button", { name: "搜索" }))
 
       expect(await screen.findByText(expectedError)).toBeVisible()
       expect(field).toHaveAttribute("aria-invalid", "true")
@@ -140,13 +140,13 @@ describe("SearchWorkspace adversarial input handling", () => {
       />,
     )
 
-    fireEvent.change(screen.getByLabelText("Semantic query"), { target: { value: "login" } })
-    fireEvent.click(screen.getByRole("button", { name: "Filters" }))
-    fireEvent.change(screen.getByLabelText("Agent filter"), { target: { value: "   " } })
-    fireEvent.change(screen.getByLabelText("CWD keyword"), { target: { value: "\t  " } })
-    fireEvent.click(screen.getByRole("button", { name: "Search" }))
+    fireEvent.change(screen.getByLabelText("语义查询"), { target: { value: "login" } })
+    fireEvent.click(screen.getByRole("button", { name: "筛选条件" }))
+    fireEvent.change(screen.getByLabelText("Agent 筛选"), { target: { value: "   " } })
+    fireEvent.change(screen.getByLabelText("工作目录关键词"), { target: { value: "\t  " } })
+    fireEvent.click(screen.getByRole("button", { name: "搜索" }))
 
-    expect(await screen.findByText("No matching sessions")).toBeVisible()
+    expect(await screen.findByText("没有匹配的会话")).toBeVisible()
     expect(calls).toEqual([
       {
         query: "login",
@@ -170,8 +170,8 @@ describe("SearchWorkspace adversarial input handling", () => {
       />,
     )
 
-    fireEvent.change(screen.getByLabelText("Semantic query"), { target: { value: "unsafe" } })
-    fireEvent.click(screen.getByRole("button", { name: "Search" }))
+    fireEvent.change(screen.getByLabelText("语义查询"), { target: { value: "unsafe" } })
+    fireEvent.click(screen.getByRole("button", { name: "搜索" }))
 
     expect(await screen.findByText(unsafeText.title)).toBeVisible()
     expect(screen.getByText(unsafeText.snippet)).toBeVisible()

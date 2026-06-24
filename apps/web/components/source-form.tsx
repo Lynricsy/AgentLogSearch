@@ -2,8 +2,9 @@
 
 import type { SourcePresetMetadata } from "@agent-log-search/shared"
 import { Button, Input, Switch, Textarea } from "@heroui/react"
-import { Check, Plus, Save } from "lucide-react"
-import { useMemo, useState, useId } from "react"
+import { Plus, Save, X } from "lucide-react"
+import { useId, useMemo, useState } from "react"
+import { formatSourcePresetMetadataLabel } from "./display-labels"
 import {
   createFormStateFromPreset,
   firstPreset,
@@ -20,6 +21,9 @@ type SourceFormProps = {
   readonly onCancel?: () => void
   readonly onSubmit: (state: SourceFormState) => Promise<void>
   readonly presets: readonly SourcePresetMetadata[]
+  readonly layout?: "stacked" | "compact"
+  readonly showHeader?: boolean
+  readonly surface?: "panel" | "plain"
 }
 
 export function SourceForm({
@@ -30,6 +34,9 @@ export function SourceForm({
   onCancel,
   onSubmit,
   presets,
+  layout = "stacked",
+  showHeader = true,
+  surface = "panel",
 }: SourceFormProps) {
   const defaultState = useMemo(
     () => initialState ?? createFormStateFromPreset(firstPreset(presets)),
@@ -57,37 +64,48 @@ export function SourceForm({
     setErrors({})
   }
 
-  const actionLabel = mode === "create" ? "Create source" : "Save source"
+  const actionLabel = mode === "create" ? "创建数据源" : "保存数据源"
   const ActionIcon = mode === "create" ? Plus : Save
+  const containerClass =
+    surface === "panel"
+      ? "min-w-0 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] p-4"
+      : "min-w-0"
+  const isCompact = layout === "compact"
+  const fieldsClass = isCompact ? "mt-3 grid gap-x-3 gap-y-2 md:grid-cols-2" : "mt-4 grid gap-3"
+  const fullFieldClass = isCompact ? "min-w-0 md:col-span-2" : "min-w-0"
+  const pairedFieldsClass = isCompact ? "contents" : "grid gap-3"
+  const footerClass = isCompact ? "mt-3 flex flex-wrap gap-2" : "mt-4 flex flex-wrap gap-2"
 
   return (
-    <div className="min-w-0 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">
-            {mode === "create" ? "Create source" : "Edit source"}
-          </h2>
-          <p className="mt-1 text-xs text-[var(--app-muted)]">
-            Presets fill parser, reader, root path, glob, and resume command.
-          </p>
-        </div>
+    <div className={containerClass}>
+      <div className={showHeader ? "flex items-start justify-between gap-3" : "flex justify-end"}>
+        {showHeader ? (
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">
+              {mode === "create" ? "创建数据源" : "编辑数据源"}
+            </h2>
+            <p className="mt-1 text-xs text-[var(--app-muted)]">
+              预设会填充解析器、读取器、根路径、文件匹配规则和恢复命令模板。
+            </p>
+          </div>
+        ) : null}
         <Switch
           classNames={{ label: "text-xs text-[var(--app-muted)]" }}
           isSelected={state.enabled}
           onValueChange={(enabled) => setState((current) => ({ ...current, enabled }))}
           size="sm"
         >
-          Enabled
+          启用
         </Switch>
       </div>
 
-      <div className="mt-4 grid gap-3">
+      <div className={fieldsClass}>
         <div className="min-w-0">
           <Input
-            label="Source name"
+            label="数据源名称"
             labelPlacement="outside"
             onValueChange={(name) => setState((current) => ({ ...current, name }))}
-            placeholder="Demo Generic JSONL source"
+            placeholder="本地 JSONL 会话"
             radius="sm"
             size="sm"
             value={state.name}
@@ -99,10 +117,10 @@ export function SourceForm({
         </div>
         <div className="min-w-0">
           <label className="text-xs font-medium text-[var(--app-muted)]" htmlFor={presetSelectId}>
-            Preset
+            预设
           </label>
           <select
-            aria-label="Preset"
+            aria-label="预设"
             className="mt-1 w-full min-w-0 rounded-md border border-[var(--app-border)] bg-white px-3 py-2 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-accent)] focus:ring-2 focus:ring-[var(--app-accent-soft)] dark:bg-[var(--app-panel)]"
             id={presetSelectId}
             onChange={(event) => applyPreset(event.currentTarget.value)}
@@ -110,14 +128,14 @@ export function SourceForm({
           >
             {presets.map((preset) => (
               <option key={preset.id} value={preset.id}>
-                {preset.label}
+                {formatSourcePresetMetadataLabel(preset)}
               </option>
             ))}
           </select>
         </div>
-        <div className="min-w-0">
+        <div className={fullFieldClass}>
           <Input
-            label="Root path"
+            label="根路径"
             labelPlacement="outside"
             onValueChange={(rootPath) => setState((current) => ({ ...current, rootPath }))}
             radius="sm"
@@ -129,10 +147,10 @@ export function SourceForm({
             <span className="mt-1 block text-xs text-danger-700">{errors.rootPath}</span>
           ) : null}
         </div>
-        <div className="grid gap-3">
+        <div className={pairedFieldsClass}>
           <div className="min-w-0">
             <Input
-              label="File glob"
+              label="文件匹配规则"
               labelPlacement="outside"
               onValueChange={(fileGlob) => setState((current) => ({ ...current, fileGlob }))}
               radius="sm"
@@ -144,28 +162,32 @@ export function SourceForm({
               <span className="mt-1 block text-xs text-danger-700">{errors.fileGlob}</span>
             ) : null}
           </div>
+          <div className="min-w-0">
+            <Input
+              isReadOnly
+              label="解析器类型"
+              labelPlacement="outside"
+              radius="sm"
+              size="sm"
+              value={state.parserType}
+              variant="bordered"
+            />
+          </div>
+        </div>
+        <div className="min-w-0">
           <Input
             isReadOnly
-            label="Parser type"
+            label="读取器类型"
             labelPlacement="outside"
             radius="sm"
             size="sm"
-            value={state.parserType}
+            value={state.readerType}
             variant="bordered"
           />
         </div>
-        <Input
-          isReadOnly
-          label="Reader type"
-          labelPlacement="outside"
-          radius="sm"
-          size="sm"
-          value={state.readerType}
-          variant="bordered"
-        />
         <div className="min-w-0">
           <Input
-            label="Scan interval seconds"
+            label="扫描间隔秒数"
             labelPlacement="outside"
             onValueChange={(scanIntervalSeconds) =>
               setState((current) => ({ ...current, scanIntervalSeconds }))
@@ -177,14 +199,12 @@ export function SourceForm({
             variant="bordered"
           />
           {errors.scanIntervalSeconds ? (
-            <span className="mt-1 block text-xs text-danger-700">
-              {errors.scanIntervalSeconds}
-            </span>
+            <span className="mt-1 block text-xs text-danger-700">{errors.scanIntervalSeconds}</span>
           ) : null}
         </div>
-        <div className="min-w-0">
+        <div className={fullFieldClass}>
           <Textarea
-            label="Resume template"
+            label="恢复命令模板"
             labelPlacement="outside"
             onValueChange={(resumeTemplate) =>
               setState((current) => ({ ...current, resumeTemplate }))
@@ -206,7 +226,7 @@ export function SourceForm({
         </p>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className={footerClass}>
         <Button
           color="primary"
           isLoading={isSubmitting}
@@ -217,8 +237,8 @@ export function SourceForm({
           {actionLabel}
         </Button>
         {onCancel ? (
-          <Button onPress={onCancel} radius="sm" startContent={<Check className="size-4" />}>
-            Cancel
+          <Button onPress={onCancel} radius="sm" startContent={<X className="size-4" />}>
+            取消
           </Button>
         ) : null}
       </div>
@@ -228,16 +248,16 @@ export function SourceForm({
 
 function validateForm(state: SourceFormState): SourceFormErrors {
   return {
-    ...(state.name.trim() ? {} : { name: "Source name is required." }),
+    ...(state.name.trim() ? {} : { name: "数据源名称不能为空。" }),
     ...(isRootPath(state.rootPath)
       ? {}
-      : { rootPath: "Root path must be absolute or home-relative." }),
-    ...(state.fileGlob.trim() ? {} : { fileGlob: "File glob is required." }),
-    ...(state.resumeTemplate.trim() ? {} : { resumeTemplate: "Resume template is required." }),
+      : { rootPath: "根路径必须是绝对路径或以 ~ 开头的主目录路径。" }),
+    ...(state.fileGlob.trim() ? {} : { fileGlob: "文件匹配规则不能为空。" }),
+    ...(state.resumeTemplate.trim() ? {} : { resumeTemplate: "恢复命令模板不能为空。" }),
     ...(isScanIntervalSeconds(state.scanIntervalSeconds)
       ? {}
       : {
-          scanIntervalSeconds: "Scan interval must be an integer from 60 to 86400 seconds.",
+          scanIntervalSeconds: "扫描间隔必须是 60 到 86400 秒之间的整数。",
         }),
   }
 }

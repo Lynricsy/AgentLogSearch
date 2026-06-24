@@ -1,13 +1,34 @@
 "use client"
 
 import type { PaginatedResponse, ScanJob } from "@agent-log-search/shared"
-import { Button, Skeleton, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from "@heroui/react"
+import {
+  Button,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+} from "@heroui/react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useState } from "react"
 
+import {
+  formatDisplayName,
+  formatParserType,
+  formatScanJobStatus,
+  formatSourcePreset,
+} from "./display-labels"
 import { StatusBadge } from "./status-badge"
 
 const ERROR_SUMMARY_LIMIT = 96
+
+type SummaryRow = {
+  readonly className: string
+  readonly label: string
+  readonly value: string | number
+}
 
 type ScanJobsTableProps = {
   readonly onPageChange: (page: number) => void
@@ -18,7 +39,7 @@ export function ScanJobsTable({ onPageChange, page }: ScanJobsTableProps) {
   return (
     <div className="space-y-3">
       <Table
-        aria-label="Scan jobs"
+        aria-label="扫描任务"
         classNames={{
           base: "rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)]",
           th: "bg-[var(--app-accent-soft)] text-xs text-[var(--app-muted)]",
@@ -30,76 +51,109 @@ export function ScanJobsTable({ onPageChange, page }: ScanJobsTableProps) {
       >
         <TableHeader>
           <TableColumn key="status" isRowHeader>
-            Status
+            状态
           </TableColumn>
-          <TableColumn key="source">Source</TableColumn>
-          <TableColumn key="time">Time</TableColumn>
-          <TableColumn key="summary">Summary</TableColumn>
-          <TableColumn key="error">Error</TableColumn>
+          <TableColumn key="source">数据源</TableColumn>
+          <TableColumn key="time">时间</TableColumn>
+          <TableColumn key="summary">摘要</TableColumn>
+          <TableColumn key="error">错误</TableColumn>
         </TableHeader>
         <TableBody
           isLoading={false}
           loadingContent={<Skeleton className="h-12 w-full rounded-lg" />}
-          emptyContent="No matching scan jobs for this filter."
+          emptyContent="当前筛选条件下没有匹配的扫描任务。"
         >
-          {page.items.map((job) => (
-            <TableRow key={job.id}>
-              <TableCell>
-                <StatusBadge tone={statusTone(job.status)}>{job.status}</StatusBadge>
-              </TableCell>
-              <TableCell>
-                <div className="space-y-1">
-                  <p className="font-medium text-[var(--app-ink)]">
-                    {job.source?.name ?? "Unknown source"}
-                  </p>
-                  <div className="flex flex-wrap gap-1 text-xs">
-                    <span>{job.source?.sourcePreset ?? "unknown"}</span>
-                    <span>{job.source?.parserType ?? "unknown parser"}</span>
+          {page.items.map((job) => {
+            const sourceName = formatDisplayName(job.source?.name, "未知数据源")
+            return (
+              <TableRow key={job.id}>
+                <TableCell>
+                  <StatusBadge tone={statusTone(job.status)}>
+                    {formatScanJobStatus(job.status)}
+                  </StatusBadge>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <p className="font-medium text-[var(--app-ink)]">{sourceName}</p>
+                    <div className="flex flex-wrap gap-1 text-xs">
+                      <span>
+                        {job.source ? formatSourcePreset(job.source.sourcePreset) : "未知预设"}
+                      </span>
+                      <span>
+                        {job.source ? formatParserType(job.source.parserType) : "未知解析器"}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="space-y-0.5">
-                  <p>{formatDateTime(job.startedAt)}</p>
-                  <p>{formatDateTime(job.finishedAt)}</p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between gap-2 tabular-nums">
-                    <span className="text-[var(--app-muted)]">Seen</span>
-                    <span>{job.filesDiscovered}</span>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-0.5">
+                    <p>{formatDateTime(job.startedAt)}</p>
+                    <p>{formatDateTime(job.finishedAt)}</p>
                   </div>
-                  <div className="flex justify-between gap-2 tabular-nums">
-                    <span className="text-[var(--app-muted)]">Parsed</span>
-                    <span>{job.filesParsed}</span>
-                  </div>
-                  <div className="flex justify-between gap-2 tabular-nums">
-                    <span className="text-[var(--app-muted)]">Errors</span>
-                    <span>{job.filesFailed}</span>
-                  </div>
-                  <div className="flex justify-between gap-2 tabular-nums">
-                    <span className="text-[var(--app-muted)]">Imported</span>
-                    <span>
-                      {job.sessionsImported} / {job.messagesImported}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-2 tabular-nums">
-                    <span className="text-[var(--app-muted)]">Chunks</span>
-                    <span>{job.chunksCreated}</span>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <ErrorSummary errorMessage={job.errorMessage} jobId={job.id} />
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell>
+                  <ScanSummary job={job} />
+                </TableCell>
+                <TableCell>
+                  <ErrorSummary errorMessage={job.errorMessage} jobId={job.id} />
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
       <PaginationControls onPageChange={onPageChange} page={page} />
     </div>
   )
+}
+
+function ScanSummary({ job }: { readonly job: ScanJob }) {
+  const rows = scanSummaryRows(job)
+
+  return (
+    <div className="grid min-w-36 gap-1 text-xs">
+      {rows.map((row) => (
+        <div
+          className={`flex justify-between gap-3 rounded-md border px-2 py-1 tabular-nums ${row.className}`}
+          data-testid="scan-summary-row"
+          key={row.label}
+        >
+          <span className="font-medium">{row.label}</span>
+          <span className="font-semibold">{row.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function scanSummaryRows(job: ScanJob): readonly SummaryRow[] {
+  return [
+    {
+      className: "border-sky-200 bg-sky-50 text-sky-900",
+      label: "发现",
+      value: job.filesDiscovered,
+    },
+    {
+      className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      label: "解析",
+      value: job.filesParsed,
+    },
+    {
+      className: "border-rose-200 bg-rose-50 text-rose-900",
+      label: "错误",
+      value: job.filesFailed,
+    },
+    {
+      className: "border-amber-200 bg-amber-50 text-amber-900",
+      label: "导入",
+      value: `${job.sessionsImported} / ${job.messagesImported}`,
+    },
+    {
+      className: "border-violet-200 bg-violet-50 text-violet-900",
+      label: "片段",
+      value: job.chunksCreated,
+    },
+  ]
 }
 
 function ErrorSummary({
@@ -117,13 +171,13 @@ function ErrorSummary({
     <div className="max-w-96 space-y-2">
       <p className="break-words text-[var(--app-muted)]">{summary}</p>
       <Button
-        aria-label={`View error details for scan job ${jobId}`}
+        aria-label={`查看扫描任务 ${jobId} 的错误详情`}
         onPress={() => setIsOpen((current) => !current)}
         radius="sm"
         size="sm"
         variant="flat"
       >
-        {isOpen ? "Hide details" : "View details"}
+        {isOpen ? "收起详情" : "查看详情"}
       </Button>
       {isOpen ? (
         <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded bg-danger-50 p-3 text-xs text-danger-900">
@@ -148,13 +202,13 @@ function PaginationControls({
     <div className="flex flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-3 text-sm text-[var(--app-muted)] sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap gap-2">
         <span>
-          Page {page.page} of {Math.max(page.totalPages, 1)}
+          第 {page.page} 页，共 {Math.max(page.totalPages, 1)} 页
         </span>
-        <span>{page.totalItems} jobs</span>
+        <span>{page.totalItems} 个任务</span>
       </div>
       <div className="flex gap-2">
         <Button
-          aria-label="Previous scan jobs page"
+          aria-label="上一页扫描任务"
           isDisabled={isFirst}
           onPress={() => onPageChange(page.page - 1)}
           radius="sm"
@@ -162,10 +216,10 @@ function PaginationControls({
           startContent={<ChevronLeft aria-hidden="true" className="size-4" />}
           variant="bordered"
         >
-          Previous
+          上一页
         </Button>
         <Button
-          aria-label="Next scan jobs page"
+          aria-label="下一页扫描任务"
           isDisabled={isLast}
           onPress={() => onPageChange(page.page + 1)}
           radius="sm"
@@ -173,7 +227,7 @@ function PaginationControls({
           endContent={<ChevronRight aria-hidden="true" className="size-4" />}
           variant="bordered"
         >
-          Next
+          下一页
         </Button>
       </div>
     </div>

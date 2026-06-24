@@ -57,7 +57,7 @@ export function ErrorState({
           variant="flat"
           onPress={onRetry}
         >
-          Retry
+          重试
         </Button>
       ) : null}
     </div>

@@ -24,6 +24,7 @@ import ky, { isHTTPError, type Options } from "ky"
 import { z } from "zod"
 
 const DEFAULT_API_BASE_URL = "/api"
+const DEFAULT_API_TIMEOUT_MS = 120_000
 
 type ApiClientOptions = {
   readonly baseUrl?: string
@@ -82,7 +83,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   const apiOptions: Options = {
     prefix: baseUrl,
     retry: 0,
-    timeout: 10_000,
+    timeout: DEFAULT_API_TIMEOUT_MS,
   }
   const api = ky.create(options.fetcher ? { ...apiOptions, fetch: options.fetcher } : apiOptions)
 
@@ -141,7 +142,7 @@ async function requestJson<Schema extends z.ZodType>(
     if (error instanceof z.ZodError) {
       throw new ApiClientError({
         code: "invalid_response",
-        message: "API response did not match the expected contract.",
+        message: "API 响应不符合预期契约。",
         status: 0,
       })
     }
@@ -172,7 +173,7 @@ function readApiError(data: unknown, status: number): ApiErrorResponse {
       return {
         error: {
           code: "http_error",
-          message: `API request failed with HTTP ${status}.`,
+          message: `API 请求失败，HTTP 状态码 ${status}。`,
         },
       }
     }
@@ -190,7 +191,7 @@ function scanJobsSearchParams(query: ScanJobsQuery = {}): Record<string, string>
   if (!parsed.success) {
     throw new ApiClientError({
       code: "invalid_pagination_query",
-      message: `Scan jobs pagination query must use integer page >= 1 and pageSize between 1 and ${PAGINATION_DEFAULTS.maxPageSize}.`,
+      message: `扫描任务分页查询必须使用大于等于 1 的整数页码，且 pageSize 必须在 1 到 ${PAGINATION_DEFAULTS.maxPageSize} 之间。`,
       status: 0,
     })
   }
