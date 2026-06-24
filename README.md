@@ -707,14 +707,19 @@ package name, detected package managers, lockfile count, top-level dependency co
 major-version count, and keeps `manifestHash` as the stable change detector. The API does not expose
 raw lockfile contents or full dependency maps.
 
-Built experience records store a nullable build-time `manifestHash`. When a later search provides
-`repositoryPath`, compatibility checks can compare that historical hash with the current repository
-snapshot and surface dependency drift as warning reason codes.
+Built experience records store a nullable build-time `manifestHash` plus a bounded
+`dependencySnapshot` JSON summary. When a later search provides `repositoryPath`, compatibility
+checks compare the historical hash and dependency majors with the current repository snapshot. They
+surface `DEPENDENCIES_UNCHANGED`, `LOCKFILE_CHANGED`, `DEPENDENCY_VERSION_UNKNOWN`, or
+`DEPENDENCY_MAJOR_CHANGED` reason codes without exposing raw manifest or lockfile contents.
 
 The repository package also includes a bounded Tree-sitter symbol index service for TS, TSX, JS, and
 JSX files. It only parses explicitly supplied experience-related relative paths, skips unsupported
-or unsafe paths, and records symbol name/kind/location/container metadata for later compatibility
-checks.
+or unsafe paths, and records symbol name/kind/location/container metadata. Compatibility checks use
+that index to emit `SYMBOL_STILL_EXISTS` or `SYMBOL_MISSING` for historical symbol tokens.
+
+The web experience result card presents this block as “当前状态匹配”, renders reason codes as Chinese
+labels, and keeps the static-compatibility disclaimer visible.
 
 Compatibility is static context, not patch validation. Any UI or automation that presents this data
 must keep the disclaimer visible:
