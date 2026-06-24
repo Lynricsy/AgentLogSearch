@@ -32,5 +32,4 @@ COPY --from=build /workspace/apps/api/node_modules apps/api/node_modules
 COPY --from=build /workspace/apps/api/dist apps/api/dist
 COPY --from=build /workspace/apps/api/prisma apps/api/prisma
 WORKDIR /workspace/apps/api
-EXPOSE 3001
 CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node --enable-source-maps dist/main.js"]

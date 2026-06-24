@@ -1,4 +1,40 @@
 services:
+  embedding-model:
+    profiles: ["demo"]
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    container_name: agent-log-search-embedding-model
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: ${EMBEDDING_OLLAMA_KEEP_ALIVE:-30m}
+      OLLAMA_NUM_PARALLEL: ${EMBEDDING_OLLAMA_NUM_PARALLEL:-2}
+      OLLAMA_MAX_LOADED_MODELS: ${EMBEDDING_OLLAMA_MAX_LOADED_MODELS:-1}
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "ollama list >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  embedding-model-pull:
+    profiles: ["demo"]
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    container_name: agent-log-search-embedding-model-pull
+    depends_on:
+      embedding-model:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://embedding-model:11434
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:8b-q4_K_M}
+    volumes:
+      - ollama-data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull \"$${EMBEDDING_MODEL}\""]
+
   postgres:
     image: pgvector/pgvector:pg17
     container_name: agent-log-search-postgres
@@ -6,8 +42,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-agent_log_search}
       POSTGRES_USER: ${POSTGRES_USER:-agent_log_search}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent_log_search}
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -27,6 +61,8 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: agent-log-search-api
     depends_on:
+      embedding-model-pull:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     environment:
@@ -34,10 +70,18 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 3001
       DATABASE_URL: postgresql://${POSTGRES_USER:-agent_log_search}:${POSTGRES_PASSWORD:-agent_log_search}@postgres:5432/${POSTGRES_DB:-agent_log_search}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1024}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:8b-q4_K_M}
+      EMBEDDING_OLLAMA_BASE_URL: http://embedding-model:11434
+      EMBEDDING_OLLAMA_KEEP_ALIVE: ${EMBEDDING_OLLAMA_KEEP_ALIVE:-30m}
+      EMBEDDING_OLLAMA_TIMEOUT_MS: ${EMBEDDING_OLLAMA_TIMEOUT_MS:-120000}
+      EMBEDDING_PROVIDER: ollama
+      EMBEDDING_WORKER_ENABLED: ${EMBEDDING_WORKER_ENABLED:-true}
+      EMBEDDING_WORKER_INTERVAL_MS: ${EMBEDDING_WORKER_INTERVAL_MS:-5000}
+      EMBEDDING_WORKER_SOURCE_ID: ${EMBEDDING_WORKER_SOURCE_ID:-}
+      EMBEDDING_WORKER_STALE_PROCESSING_MS: ${EMBEDDING_WORKER_STALE_PROCESSING_MS:-900000}
       SCAN_SCHEDULER_ENABLED: ${SCAN_SCHEDULER_ENABLED:-false}
       SCAN_INTERVAL_SECONDS: ${SCAN_INTERVAL_SECONDS:-60}
-    ports:
-      - "127.0.0.1:${API_PORT:-3001}:3001"
     volumes:
       - ./sample-data:/sample-data:ro
       - ${CODEX_HISTORY_HOST_PATH:-./sample-data/codex}:/host-history/codex:ro
@@ -69,7 +113,17 @@ services:
       NODE_ENV: production
       API_PROXY_TARGET: http://api:3001
     ports:
-      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+      - "${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
 volumes:
+  ollama-data:
   postgres-data:
