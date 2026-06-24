@@ -55,7 +55,7 @@ export type ProcessResultFact = {
 }
 
 export type TestSummary = {
-  readonly framework: "jest" | "vitest" | "generic"
+  readonly framework: "jest" | "vitest" | "pytest" | "generic"
   readonly status: ProcessStatus
   readonly reasonCodes: readonly string[]
   readonly suiteCount?: number | undefined

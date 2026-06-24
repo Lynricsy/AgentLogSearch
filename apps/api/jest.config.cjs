@@ -35,7 +35,7 @@ module.exports = {
       "<rootDir>/src/evidence/errors/$1.ts",
     "^\\./(path-extractor|path-normalizer)\\.js$": "<rootDir>/src/evidence/paths/$1.ts",
     "^\\./(patch-parser)\\.js$": "<rootDir>/src/evidence/patches/$1.ts",
-    "^\\./(generic-process-parser|jest-output-parser|validation-output-parser|vitest-output-parser)\\.js$":
+    "^\\./(generic-process-parser|jest-output-parser|pytest-output-parser|validation-output-parser|vitest-output-parser)\\.js$":
       "<rootDir>/src/evidence/validation/$1.ts",
     "^\\./(secret-redactor)\\.js$": "<rootDir>/src/evidence/redaction/$1.ts",
     "^\\./(evidence-excerpt-builder)\\.js$": "<rootDir>/src/evidence/excerpt/$1.ts",

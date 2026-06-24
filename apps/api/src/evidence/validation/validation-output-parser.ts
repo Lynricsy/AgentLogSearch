@@ -1,5 +1,6 @@
 import type { CommandFamily, TestSummary } from "../evidence-types.js"
 import { parseJestOutput } from "./jest-output-parser.js"
+import { parsePytestOutput } from "./pytest-output-parser.js"
 import { parseVitestOutput } from "./vitest-output-parser.js"
 
 export type ValidationOutputInput = {
@@ -39,6 +40,14 @@ const PARSERS: readonly ValidationOutputParser[] = [
     supports: (input) =>
       /Test Files\s+/.test(input.output) || /\bvitest\b/.test(input.normalizedCommand ?? ""),
     parse: parseVitestOutput,
+  },
+  {
+    id: "pytest",
+    supports: (input) =>
+      /\d+\s+(?:passed|failed|skipped|xfailed|xpassed|errors?)\s+in\s+[\d.]+s/i.test(
+        input.output,
+      ) || /\bpytest\b/.test(input.normalizedCommand ?? ""),
+    parse: parsePytestOutput,
   },
 ]
 

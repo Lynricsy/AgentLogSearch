@@ -148,6 +148,61 @@ describe("EvidencePipelineService", () => {
       errorCodes: [],
     })
   })
+
+  it("classifies pytest commands and extracts pytest summaries", () => {
+    const session = makeSession([
+      {
+        kind: "tool_call",
+        sourceEventKey: "call-pytest",
+        sequence: 1,
+        subSequence: 0,
+        callId: "call-pytest",
+        toolName: "exec_command",
+        rawPointer: { sourcePath: "fixture.jsonl", lineNumber: 1 },
+        arguments: { command: "pytest tests/test_api.py" },
+      },
+      {
+        kind: "tool_result",
+        sourceEventKey: "result-pytest",
+        sequence: 2,
+        subSequence: 0,
+        callId: "call-pytest",
+        rawPointer: { sourcePath: "fixture.jsonl", lineNumber: 2 },
+        result: {
+          exitCode: 1,
+          text: [
+            "FAILED tests/test_api.py::test_login - AssertionError: expected 200",
+            "================ 1 failed, 5 passed, 1 skipped in 0.32s ================",
+          ].join("\n"),
+        },
+      },
+    ])
+
+    const events = new EvidencePipelineService().processSession(session, {
+      cwd: "/repo",
+      repositoryRoot: "/repo",
+      maxErrorsPerEvent: 20,
+      maxExcerptChars: 2_000,
+      maxPathsPerEvent: 100,
+      maxToolOutputChars: 2_000_000,
+    })
+
+    expect(events[0]).toMatchObject({
+      commandFamilies: ["test"],
+      operationKind: "TEST",
+      facts: {
+        testSummary: {
+          failed: 1,
+          failedTests: ["tests/test_api.py::test_login"],
+          framework: "pytest",
+          passed: 5,
+          skipped: 1,
+          status: "failed",
+          testCount: 7,
+        },
+      },
+    })
+  })
 })
 
 function makeSession(traceEvents: readonly ParsedTraceEvent[]): ParsedSession {

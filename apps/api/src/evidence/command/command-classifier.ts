@@ -9,7 +9,7 @@ export type CommandClassification = {
 }
 
 const PACKAGE_MANAGERS = new Set(["pnpm", "npm", "yarn", "bun"])
-const TEST_RUNNERS = new Set(["jest", "vitest"])
+const TEST_RUNNERS = new Set(["jest", "vitest", "pytest"])
 
 export function classifyCommand(tokens: readonly string[]): CommandClassification {
   const normalizedTokens = normalizeWrapperTokens(tokens)
