@@ -7,8 +7,38 @@ export type RepositorySnapshot = {
   readonly branch: string | null
   readonly dirtyHash: string
   readonly manifestHash: string | null
+  readonly dependencies: DependencySnapshot | null
   readonly capturedAt: string
   readonly quality: RepositorySnapshotQuality
+}
+
+export type DependencyLockfileKind = "npm" | "pnpm" | "yarn"
+
+export type DependencyLockfileSnapshot = {
+  readonly fileName: string
+  readonly kind: DependencyLockfileKind
+  readonly hash: string
+}
+
+export type DependencyGroup =
+  | "dependencies"
+  | "devDependencies"
+  | "optionalDependencies"
+  | "peerDependencies"
+
+export type DependencyVersionSnapshot = {
+  readonly group: DependencyGroup
+  readonly name: string
+  readonly versionRange: string
+  readonly majorVersion: number | null
+}
+
+export type DependencySnapshot = {
+  readonly manifestHash: string
+  readonly packageName: string | null
+  readonly packageManagers: readonly DependencyLockfileKind[]
+  readonly lockfiles: readonly DependencyLockfileSnapshot[]
+  readonly topLevelDependencies: readonly DependencyVersionSnapshot[]
 }
 
 export type RepositoryFileStatus = {

@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { CompatibilityService } from "./compatibility.service.js"
+import { DependencySnapshotService } from "./dependency-snapshot.service.js"
 import { GitInspectorService } from "./git-inspector.service.js"
 import { RepositoryLocatorService } from "./repository-locator.service.js"
 import { RepositoryPathPolicyService } from "./repository-path-policy.service.js"
@@ -74,7 +75,7 @@ function createService(): CompatibilityService {
   const git = new GitInspectorService()
   const pathPolicy = new RepositoryPathPolicyService()
   const locator = new RepositoryLocatorService(git, pathPolicy)
-  const snapshots = new RepositorySnapshotService(git, locator)
+  const snapshots = new RepositorySnapshotService(git, locator, new DependencySnapshotService())
   return new CompatibilityService(git, snapshots)
 }
 
