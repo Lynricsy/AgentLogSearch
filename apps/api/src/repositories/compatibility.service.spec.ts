@@ -97,6 +97,26 @@ describe("CompatibilityService", () => {
     expect(result.reasonCodes).toContain("DEPENDENCY_VERSION_UNKNOWN")
   })
 
+  it("marks compatibility uncertain when coverage is too low", async () => {
+    const repo = await createGitRepository()
+
+    const result = await createService().check({
+      currentRepositoryPath: repo,
+      historicalPaths: [],
+    })
+
+    expect(result.coverage).toBe(0)
+    expect(result.level).toBe("UNCERTAIN")
+    expect(result.reasonCodes).toEqual(
+      expect.arrayContaining([
+        "REPO_IDENTITY_UNKNOWN",
+        "FILES_UNKNOWN",
+        "SYMBOLS_UNKNOWN",
+        "DEPENDENCY_VERSION_UNKNOWN",
+      ]),
+    )
+  })
+
   it("marks dependency major changes when historical dependency snapshot is available", async () => {
     const repo = await createGitRepository()
     await writeFile(
