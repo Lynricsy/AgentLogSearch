@@ -60,6 +60,7 @@ export type RepositoryCompatibilityInput = {
   readonly historicalPaths: readonly string[]
   readonly historicalSymbols?: readonly string[]
   readonly historicalHead?: string | null
+  readonly historicalManifestHash?: string | null
 }
 
 export type RepositoryCompatibilityResult = {

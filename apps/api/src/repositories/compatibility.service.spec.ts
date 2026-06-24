@@ -69,6 +69,32 @@ describe("CompatibilityService", () => {
     ])
     expect(result.reasonCodes).toContain("RENAMES_DETECTED")
   })
+
+  it("adds a lockfile warning when the historical manifest hash differs", async () => {
+    const repo = await createGitRepository()
+    await writeFile(path.join(repo, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
+    await commitAll(repo, "add lockfile")
+
+    const result = await createService().check({
+      currentRepositoryPath: repo,
+      historicalManifestHash: "0".repeat(64),
+      historicalPaths: ["package.json"],
+    })
+
+    expect(result.reasonCodes).toContain("LOCKFILE_CHANGED")
+    expect(result.reasonCodes).not.toContain("DEPENDENCY_VERSION_UNKNOWN")
+  })
+
+  it("marks dependency version unknown when no historical manifest hash is available", async () => {
+    const repo = await createGitRepository()
+
+    const result = await createService().check({
+      currentRepositoryPath: repo,
+      historicalPaths: ["package.json"],
+    })
+
+    expect(result.reasonCodes).toContain("DEPENDENCY_VERSION_UNKNOWN")
+  })
 })
 
 function createService(): CompatibilityService {

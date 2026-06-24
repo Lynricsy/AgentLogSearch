@@ -39,7 +39,9 @@ export class CompatibilityService {
     )
     const score = scoreCompatibility({
       files,
+      historicalManifestHash: input.historicalManifestHash ?? null,
       historicalRepoKey: input.historicalRepoKey ?? null,
+      manifestHash: snapshot.manifestHash,
       repoKey: snapshot.repoKey,
       symbolCount: input.historicalSymbols?.length ?? 0,
     })
@@ -81,7 +83,9 @@ async function fileStatus(
 
 function scoreCompatibility(input: {
   readonly files: readonly RepositoryFileStatus[]
+  readonly historicalManifestHash: string | null
   readonly historicalRepoKey: string | null
+  readonly manifestHash: string | null
   readonly repoKey: string
   readonly symbolCount: number
 }): {
@@ -125,6 +129,14 @@ function scoreCompatibility(input: {
     reasonCodes.push("SYMBOL_INDEX_NOT_AVAILABLE")
   } else {
     reasonCodes.push("SYMBOLS_UNKNOWN")
+  }
+
+  if (input.historicalManifestHash === null || input.manifestHash === null) {
+    reasonCodes.push("DEPENDENCY_VERSION_UNKNOWN")
+  } else if (input.historicalManifestHash === input.manifestHash) {
+    reasonCodes.push("DEPENDENCIES_UNCHANGED")
+  } else {
+    reasonCodes.push("LOCKFILE_CHANGED")
   }
 
   const totalWeight = signals.reduce((sum, signal) => sum + signal.weight, 0)
