@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { agentMessagePartSchema, agentRoleSchema } from "./domain.js"
 
 export const SEMANTIC_SEARCH_DEFAULTS = {
   maxQueryLength: 2000,
@@ -32,6 +33,30 @@ export const semanticSearchMatchedChunkSchema = z.object({
   chunkId: z.string().min(1),
   score: z.number().min(0).max(1),
   snippet: z.string(),
+  messageStartSequence: z.number().int().min(0).nullable().optional(),
+  messageEndSequence: z.number().int().min(0).nullable().optional(),
+  metadata: z
+    .object({
+      agentName: z.string(),
+      cwd: z.string().nullable(),
+      threadId: z.string(),
+      part: z.string().nullable(),
+    })
+    .optional(),
+  messages: z
+    .readonly(
+      z.array(
+        z.object({
+          id: z.string().min(1),
+          seqNo: z.number().int().min(0),
+          role: agentRoleSchema,
+          model: z.string().nullable(),
+          createdAt: z.string().datetime().nullable(),
+          parts: z.readonly(z.array(agentMessagePartSchema)),
+        }),
+      ),
+    )
+    .optional(),
 })
 
 export const semanticSearchResultSchema = z.object({

@@ -2,7 +2,7 @@ import { isRecord, readValue } from "./record-access.js"
 
 export function normalizeContent(value: unknown): string {
   const normalized = normalizeValue(value)
-  return normalized.trim()
+  return sanitizeText(normalized).trim()
 }
 
 function normalizeValue(value: unknown): string {
@@ -83,6 +83,46 @@ function normalizePrimitive(value: unknown): string {
 
 function hasText(value: string | null): value is string {
   return value !== null && value.trim().length > 0
+}
+
+function sanitizeText(value: string): string {
+  let result = ""
+  for (const character of replaceLoneSurrogates(value)) {
+    if (!isDiscardedControlCharacter(character)) {
+      result += character
+    }
+  }
+  return result
+}
+
+function replaceLoneSurrogates(value: string): string {
+  let result = ""
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(index + 1)
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        result += value[index]
+        result += value[index + 1]
+        index += 1
+      } else {
+        result += "\ufffd"
+      }
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      result += "\ufffd"
+    } else {
+      result += value[index]
+    }
+  }
+  return result
+}
+
+function isDiscardedControlCharacter(value: string): boolean {
+  const code = value.codePointAt(0)
+  if (code === undefined) {
+    return false
+  }
+  return code === 0x7f || (code < 0x20 && code !== 0x09 && code !== 0x0a && code !== 0x0d)
 }
 
 const IGNORED_FALLBACK_FIELDS = new Set([

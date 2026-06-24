@@ -6,6 +6,7 @@ import type { ParsedMessage, ParsedSession } from "../parsers/index.js"
 import type { ChunkDraft } from "../scanner/chunker.service.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { ChunkerService } from "../scanner/chunker.service.js"
+import { retainHistoryMessages } from "./message-retention.js"
 import type { FileImportInput, FileImportStats, SourceConfig } from "./scanner.types.js"
 import { toNullableDate } from "./scanner-utils.js"
 
@@ -69,24 +70,25 @@ async function importSessions(
   let messagesImported = 0
   let chunksCreated = 0
   for (const session of input.sessions) {
+    const retainedSession = retainHistoryMessages(session)
     const record = await tx.agentSession.upsert({
       where: {
         sourceId_externalThreadId: {
           sourceId: input.source.id,
-          externalThreadId: session.threadId,
+          externalThreadId: retainedSession.threadId,
         },
       },
-      create: toSessionCreate(input.source, historyFileId, session),
-      update: toSessionUpdate(input.source, historyFileId, session),
+      create: toSessionCreate(input.source, historyFileId, retainedSession),
+      update: toSessionUpdate(input.source, historyFileId, retainedSession),
     })
     const sessionChunksCreated = await replaceSessionRows(
       tx,
       input.source,
       record.id,
-      session,
+      retainedSession,
       chunker,
     )
-    messagesImported += session.messages.length
+    messagesImported += retainedSession.messages.length
     chunksCreated += sessionChunksCreated
   }
   return { sessionsImported: input.sessions.length, messagesImported, chunksCreated }
@@ -101,9 +103,11 @@ async function replaceSessionRows(
 ): Promise<number> {
   await tx.agentChunk.deleteMany({ where: { sessionId } })
   await tx.agentMessage.deleteMany({ where: { sessionId } })
-  await tx.agentMessage.createMany({
-    data: session.messages.map((message) => toMessageCreate(sessionId, message)),
-  })
+  if (session.messages.length > 0) {
+    await tx.agentMessage.createMany({
+      data: session.messages.map((message) => toMessageCreate(sessionId, message)),
+    })
+  }
   const chunks = chunker.chunkSession(source, session)
   if (chunks.length > 0) {
     await tx.agentChunk.createMany({

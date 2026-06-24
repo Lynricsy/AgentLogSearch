@@ -54,6 +54,7 @@ describe("shared domain contracts", () => {
         model: "gpt-5",
         seqNo: 1,
         createdAt: timestamp,
+        parts: [{ kind: "assistant_response", label: "Agent 回复", text: "Done" }],
       }),
       chunk: agentChunkSchema.parse({
         id: "chunk-1",
@@ -105,6 +106,7 @@ describe("shared domain contracts", () => {
     // Then
     expect(parsed.session.externalThreadId).toBe("thread-1")
     expect(parsed.message.role).toBe("assistant")
+    expect(parsed.message.parts?.[0]?.text).toBe("Done")
     expect(parsed.chunk.embeddingStatus).toBe("pending")
     expect(parsed.scanJob.filesParsed).toBe(1)
     expect(parsed.historyFile.parseStatus).toBe("READY")

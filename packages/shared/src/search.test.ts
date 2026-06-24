@@ -65,6 +65,35 @@ describe("semanticSearchResponseSchema", () => {
           matchedChunks: [
             {
               chunkId: "9",
+              messageEndSequence: 2,
+              messageStartSequence: 1,
+              messages: [
+                {
+                  createdAt: "2026-01-02T03:04:06.000Z",
+                  id: "message-1",
+                  model: null,
+                  parts: [
+                    {
+                      kind: "thinking",
+                      label: "思考",
+                      text: "先检查日志",
+                    },
+                    {
+                      kind: "assistant_response",
+                      label: "Agent 回复",
+                      text: "登录接口返回 500",
+                    },
+                  ],
+                  role: "assistant",
+                  seqNo: 2,
+                },
+              ],
+              metadata: {
+                agentName: "generic",
+                cwd: "/workspace",
+                part: null,
+                threadId: "abc123",
+              },
               score: 0.91,
               snippet: "登录接口返回 500",
             },
@@ -79,5 +108,6 @@ describe("semanticSearchResponseSchema", () => {
     // Then
     expect(result.records[0]?.threadId).toBe("abc123")
     expect(result.records[0]?.matchedChunks[0]?.snippet).toContain("登录接口返回 500")
+    expect(result.records[0]?.matchedChunks[0]?.messages?.[0]?.parts[0]?.kind).toBe("thinking")
   })
 })

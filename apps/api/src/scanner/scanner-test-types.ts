@@ -1,3 +1,4 @@
+import type { AgentRole } from "@agent-log-search/shared"
 import type { ParseResult, ParserSource } from "../parsers/index.js"
 
 export type FakeSource = {
@@ -33,7 +34,10 @@ export type FakeSession = {
 export type FakeMessage = {
   readonly sessionId: bigint
   readonly seqNo: number
+  readonly role?: AgentRole
   readonly content: string
+  readonly model?: string | null
+  readonly createdAt?: Date | null
 }
 
 export type FakeChunk = {

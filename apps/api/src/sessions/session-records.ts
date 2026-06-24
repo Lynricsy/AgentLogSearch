@@ -1,4 +1,5 @@
 import type { AgentMessage, AgentSessionDetail } from "@agent-log-search/shared"
+import { splitAgentMessageParts } from "../messages/message-parts.js"
 import {
   mapRecordValue,
   readBigIntLike,
@@ -45,12 +46,15 @@ export function toSessionDetail(record: SessionRecord): AgentSessionDetail {
 }
 
 function toAgentMessage(record: SessionRecord): AgentMessage {
+  const content = readString(record, "content")
+  const role = mapRecordValue(PRISMA_ROLE_TO_API, readString(record, "role"), "role")
   return {
-    content: readString(record, "content"),
+    content,
     createdAt: readNullableDate(record, "createdAt"),
     id: readBigIntLike(record, "id"),
     model: readNullableString(record, "model"),
-    role: mapRecordValue(PRISMA_ROLE_TO_API, readString(record, "role"), "role"),
+    parts: splitAgentMessageParts({ content, role }),
+    role,
     seqNo: readNumber(record, "seqNo"),
     sessionId: readBigIntLike(record, "sessionId"),
   }

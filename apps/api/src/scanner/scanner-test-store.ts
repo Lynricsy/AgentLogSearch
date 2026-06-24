@@ -194,6 +194,12 @@ export class FakePrisma {
     return value
   }
 
+  public onlySession(): FakeSession {
+    const value = this.sessions[0]
+    if (value === undefined) throw new Error("missing session")
+    return value
+  }
+
   public scanJobsFor(sourceId: bigint): readonly FakeScanJob[] {
     return this.scanJobs.filter((job) => job.sourceId === sourceId)
   }

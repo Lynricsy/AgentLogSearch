@@ -51,10 +51,17 @@ export function readRecordArray(
 export function readRole(value: unknown): AgentRole {
   switch (value) {
     case "system":
+    case "developer":
+      return "system"
     case "user":
     case "assistant":
     case "tool":
       return value
+    case "toolResult":
+    case "tool_result":
+    case "tool-use-result":
+    case "toolUseResult":
+      return "tool"
     default:
       return "unknown"
   }

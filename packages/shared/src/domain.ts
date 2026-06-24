@@ -3,6 +3,21 @@ import { embeddingStatusSchema, parseStatusSchema, scanJobStatusSchema } from ".
 
 export const agentRoleSchema = z.enum(["system", "user", "assistant", "tool", "unknown"])
 
+export const agentMessagePartKindSchema = z.enum([
+  "assistant_response",
+  "metadata",
+  "text",
+  "thinking",
+  "tool_call",
+  "unknown",
+])
+
+export const agentMessagePartSchema = z.object({
+  kind: agentMessagePartKindSchema,
+  label: z.string().min(1),
+  text: z.string(),
+})
+
 export const historyFileSchema = z.object({
   id: z.string().min(1),
   sourceId: z.string().min(1),
@@ -45,6 +60,7 @@ export const agentMessageSchema = z.object({
   model: z.string().nullable(),
   seqNo: z.number().int().min(0),
   createdAt: z.string().datetime().nullable(),
+  parts: z.readonly(z.array(agentMessagePartSchema)).optional(),
 })
 
 export const agentSessionDetailSchema = agentSessionSchema.extend({
@@ -109,6 +125,8 @@ export const scanRunResponseSchema = z.object({
 })
 
 export type AgentRole = z.infer<typeof agentRoleSchema>
+export type AgentMessagePartKind = z.infer<typeof agentMessagePartKindSchema>
+export type AgentMessagePart = z.infer<typeof agentMessagePartSchema>
 export type HistoryFile = z.infer<typeof historyFileSchema>
 export type AgentSession = z.infer<typeof agentSessionSchema>
 export type AgentMessage = z.infer<typeof agentMessageSchema>
