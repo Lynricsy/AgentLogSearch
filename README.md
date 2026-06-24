@@ -711,6 +711,11 @@ Built experience records store a nullable build-time `manifestHash`. When a late
 `repositoryPath`, compatibility checks can compare that historical hash with the current repository
 snapshot and surface dependency drift as warning reason codes.
 
+The repository package also includes a bounded Tree-sitter symbol index service for TS, TSX, JS, and
+JSX files. It only parses explicitly supplied experience-related relative paths, skips unsupported
+or unsafe paths, and records symbol name/kind/location/container metadata for later compatibility
+checks.
+
 Compatibility is static context, not patch validation. Any UI or automation that presents this data
 must keep the disclaimer visible:
 

@@ -5,6 +5,7 @@ import { GitInspectorService } from "./git-inspector.service.js"
 import { RepositoryLocatorService } from "./repository-locator.service.js"
 import { RepositoryPathPolicyService } from "./repository-path-policy.service.js"
 import { RepositorySnapshotService } from "./repository-snapshot.service.js"
+import { SymbolIndexService } from "./symbol-index.service.js"
 
 @Module({
   exports: [
@@ -12,6 +13,7 @@ import { RepositorySnapshotService } from "./repository-snapshot.service.js"
     DependencySnapshotService,
     RepositoryLocatorService,
     RepositorySnapshotService,
+    SymbolIndexService,
   ],
   providers: [
     CompatibilityService,
@@ -20,6 +22,7 @@ import { RepositorySnapshotService } from "./repository-snapshot.service.js"
     RepositoryLocatorService,
     RepositoryPathPolicyService,
     RepositorySnapshotService,
+    SymbolIndexService,
   ],
 })
 export class RepositoriesModule {}

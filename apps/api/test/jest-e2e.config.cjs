@@ -53,7 +53,7 @@ module.exports = {
     "^\\./(message-parts)\\.js$": "<rootDir>/src/messages/$1.ts",
     "^\\./pipeline-versions\\.js$": "<rootDir>/src/pipeline-versions.ts",
     "^\\.\\./pipeline-versions\\.js$": "<rootDir>/src/pipeline-versions.ts",
-    "^\\./(compatibility\\.service|dependency-snapshot\\.service|git-inspector\\.service|repositories\\.module|repository-locator\\.service|repository-path-policy\\.service|repository-snapshot\\.service|repository\\.types)\\.js$":
+    "^\\./(compatibility\\.service|dependency-snapshot\\.service|git-inspector\\.service|repositories\\.module|repository-locator\\.service|repository-path-policy\\.service|repository-snapshot\\.service|repository\\.types|symbol-index\\.service)\\.js$":
       "<rootDir>/src/repositories/$1.ts",
     "^\\./repositories/(.*)\\.js$": "<rootDir>/src/repositories/$1.ts",
     "^\\.\\./repositories/(.*)\\.js$": "<rootDir>/src/repositories/$1.ts",

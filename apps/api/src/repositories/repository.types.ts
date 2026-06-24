@@ -41,6 +41,25 @@ export type DependencySnapshot = {
   readonly topLevelDependencies: readonly DependencyVersionSnapshot[]
 }
 
+export type RepositorySymbolKind =
+  | "class"
+  | "enum"
+  | "function"
+  | "interface"
+  | "method"
+  | "property"
+  | "type"
+  | "variable"
+
+export type RepositorySymbolSnapshot = {
+  readonly name: string
+  readonly kind: RepositorySymbolKind
+  readonly path: string
+  readonly line: number
+  readonly column: number
+  readonly container: string | null
+}
+
 export type RepositoryFileStatus = {
   readonly currentPath: string | null
   readonly historicalPath: string
