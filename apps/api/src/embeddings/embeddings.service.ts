@@ -2,13 +2,12 @@ import { Injectable, NotFoundException, type OnModuleInit } from "@nestjs/common
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { PrismaService } from "../database/prisma.service.js"
 import { EmbeddingSourceNotFoundError, summarizeEmbeddingError } from "./embedding-errors.js"
-// biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import {
   assertEmbeddingDimension,
   assertProviderDimension,
   DatabaseEmbeddingDimensionMismatchError,
   EMBEDDING_DIMENSION,
-  MockEmbeddingProvider,
+  type EmbeddingProvider,
 } from "./embedding-provider.js"
 import { type EmbeddingJobSummary, toEmbeddingJobSummary } from "./embedding-records.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
@@ -16,14 +15,15 @@ import { EmbeddingSqlStore } from "./embedding-sql.js"
 
 const PROCESS_BATCH_SIZE = 16
 
-type JobRequester = "process" | "rebuild"
+type ProcessJobRequester = "process" | "scheduler" | "manual"
+type JobRequester = ProcessJobRequester | "rebuild"
 
 @Injectable()
 export class EmbeddingsService implements OnModuleInit {
   public constructor(
     private readonly prisma: PrismaService,
     private readonly store: EmbeddingSqlStore,
-    private readonly provider: MockEmbeddingProvider,
+    private readonly provider: EmbeddingProvider,
   ) {}
 
   public async onModuleInit(): Promise<void> {
@@ -34,9 +34,12 @@ export class EmbeddingsService implements OnModuleInit {
     }
   }
 
-  public async process(sourceId: bigint | null): Promise<EmbeddingJobSummary> {
+  public async process(
+    sourceId: bigint | null,
+    requestedBy: ProcessJobRequester = "process",
+  ): Promise<EmbeddingJobSummary> {
     await this.ensureSourceExists(sourceId)
-    const job = await this.createJob("process", sourceId, 0)
+    const job = await this.createJob(requestedBy, sourceId, 0)
     return this.runProcessJob(job.id, sourceId)
   }
 

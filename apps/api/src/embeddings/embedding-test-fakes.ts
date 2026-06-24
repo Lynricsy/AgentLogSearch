@@ -4,7 +4,7 @@ import type { ChunkForEmbedding } from "./embedding-sql.js"
 type FakeEmbeddingJob = {
   readonly id: bigint
   readonly sourceId: bigint | null
-  readonly requestedBy: "process" | "rebuild"
+  readonly requestedBy: "process" | "rebuild" | "scheduler" | "manual"
   status: "queued" | "running" | "completed" | "failed"
   totalChunks: number
   processedChunks: number
@@ -18,6 +18,7 @@ type FakeEmbeddingJob = {
 type FakeChunk = ChunkForEmbedding & {
   readonly sourceId: bigint
   status: "pending" | "processing" | "ready" | "failed"
+  staleProcessing: boolean
   embedding: EmbeddingVector | null
   model: string | null
   error: string | null
@@ -67,6 +68,7 @@ export class FakeEmbeddingSqlStore {
         sourceId: input.sourceId,
         chunkText: input.text,
         status: input.status,
+        staleProcessing: false,
         embedding: input.status === "ready" ? [1] : null,
         model: input.status === "ready" ? "old" : null,
         error: input.status === "failed" ? "old error" : null,
@@ -103,6 +105,21 @@ export class FakeEmbeddingSqlStore {
     return chunks.length
   }
 
+  public async resetStaleProcessingChunks(
+    sourceId: bigint | null,
+    _olderThanMs: number,
+  ): Promise<number> {
+    const chunks = this.filterChunks(sourceId).filter(
+      (chunk) => chunk.status === "processing" && chunk.staleProcessing,
+    )
+    for (const chunk of chunks) {
+      chunk.status = "pending"
+      chunk.staleProcessing = false
+      chunk.error = "reset stale processing chunk"
+    }
+    return chunks.length
+  }
+
   public async claimBatch(
     sourceId: bigint | null,
     batchSize: number,
@@ -112,6 +129,7 @@ export class FakeEmbeddingSqlStore {
       .slice(0, batchSize)
     for (const chunk of chunks) {
       chunk.status = "processing"
+      chunk.staleProcessing = false
       chunk.error = null
     }
     return chunks.map((chunk) => ({ id: chunk.id, chunkText: chunk.chunkText }))
@@ -141,6 +159,12 @@ export class FakeEmbeddingSqlStore {
 
   public chunkError(id: bigint): string | null {
     return this.findChunk(id).error
+  }
+
+  public markChunkStaleProcessing(id: bigint): void {
+    const chunk = this.findChunk(id)
+    chunk.status = "processing"
+    chunk.staleProcessing = true
   }
 
   private filterChunks(sourceId: bigint | null): readonly FakeChunk[] {

@@ -72,6 +72,27 @@ export class EmbeddingSqlStore {
     return result.rowCount ?? 0
   }
 
+  public async resetStaleProcessingChunks(
+    sourceId: bigint | null,
+    olderThanMs: number,
+  ): Promise<number> {
+    const result = await this.pg.query<IdRow>(
+      `
+        UPDATE agent_chunk
+        SET embedding_status = 'pending',
+            embedding_error = 'reset stale processing chunk',
+            embedding_requested_at = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE embedding_status = 'processing'
+          AND ($1::bigint IS NULL OR source_id = $1::bigint)
+          AND embedding_requested_at < CURRENT_TIMESTAMP - ($2::int * INTERVAL '1 millisecond')
+        RETURNING id
+      `,
+      [sourceId, olderThanMs],
+    )
+    return result.rowCount ?? 0
+  }
+
   public async claimBatch(
     sourceId: bigint | null,
     batchSize: number,

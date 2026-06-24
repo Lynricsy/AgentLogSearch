@@ -1,11 +1,9 @@
-import { Test } from "@nestjs/testing"
-import { PrismaService } from "../database/prisma.service.js"
+import type { PrismaService } from "../database/prisma.service.js"
 import {
   DatabaseEmbeddingDimensionMismatchError,
   EmbeddingDimensionMismatchError,
-  MockEmbeddingProvider,
 } from "./embedding-provider.js"
-import { EmbeddingSqlStore } from "./embedding-sql.js"
+import type { EmbeddingSqlStore } from "./embedding-sql.js"
 import {
   FakeEmbeddingPrisma,
   FakeEmbeddingProvider,
@@ -120,13 +118,9 @@ async function createService({
   readonly provider?: FakeEmbeddingProvider
   readonly store?: FakeEmbeddingSqlStore
 } = {}): Promise<EmbeddingsService> {
-  const moduleRef = await Test.createTestingModule({
-    providers: [
-      EmbeddingsService,
-      { provide: PrismaService, useValue: prisma },
-      { provide: EmbeddingSqlStore, useValue: store },
-      { provide: MockEmbeddingProvider, useValue: provider },
-    ],
-  }).compile()
-  return moduleRef.get(EmbeddingsService)
+  return new EmbeddingsService(
+    prisma as unknown as PrismaService,
+    store as unknown as EmbeddingSqlStore,
+    provider,
+  )
 }
