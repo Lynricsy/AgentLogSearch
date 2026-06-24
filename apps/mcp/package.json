@@ -10,6 +10,7 @@
     "build": "pnpm --filter @agent-log-search/shared build && tsc -p tsconfig.build.json",
     "dev": "tsx src/main.ts",
     "lint": "biome check .",
+    "smoke:stdio": "node --enable-source-maps dist/stdio-smoke.js",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
