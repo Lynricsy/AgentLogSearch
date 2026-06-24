@@ -1,4 +1,5 @@
 import type { CommandFamily, TestSummary } from "../evidence-types.js"
+import { parseCargoTestOutput } from "./cargo-test-output-parser.js"
 import { parseGoTestOutput } from "./go-test-output-parser.js"
 import { parseJestOutput } from "./jest-output-parser.js"
 import { parsePytestOutput } from "./pytest-output-parser.js"
@@ -57,6 +58,13 @@ const PARSERS: readonly ValidationOutputParser[] = [
       /^--- FAIL:\s+/m.test(input.output) ||
       /\bgo\s+test\b/.test(input.normalizedCommand ?? ""),
     parse: parseGoTestOutput,
+  },
+  {
+    id: "cargo-test",
+    supports: (input) =>
+      /test result:\s+(?:ok|FAILED)\./i.test(input.output) ||
+      /\bcargo\s+test\b/.test(input.normalizedCommand ?? ""),
+    parse: parseCargoTestOutput,
   },
 ]
 

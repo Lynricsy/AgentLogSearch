@@ -258,6 +258,59 @@ describe("EvidencePipelineService", () => {
       },
     })
   })
+
+  it("classifies cargo test commands and extracts cargo test summaries", () => {
+    const session = makeSession([
+      {
+        kind: "tool_call",
+        sourceEventKey: "call-cargo-test",
+        sequence: 1,
+        subSequence: 0,
+        callId: "call-cargo-test",
+        toolName: "exec_command",
+        rawPointer: { sourcePath: "fixture.jsonl", lineNumber: 1 },
+        arguments: { command: "cargo test" },
+      },
+      {
+        kind: "tool_result",
+        sourceEventKey: "result-cargo-test",
+        sequence: 2,
+        subSequence: 0,
+        callId: "call-cargo-test",
+        rawPointer: { sourcePath: "fixture.jsonl", lineNumber: 2 },
+        result: {
+          exitCode: 101,
+          text: [
+            "test auth::tests::login_rejects_bad_token ... FAILED",
+            "test result: FAILED. 9 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s",
+          ].join("\n"),
+        },
+      },
+    ])
+
+    const events = new EvidencePipelineService().processSession(session, {
+      cwd: "/repo",
+      repositoryRoot: "/repo",
+      maxErrorsPerEvent: 20,
+      maxExcerptChars: 2_000,
+      maxPathsPerEvent: 100,
+      maxToolOutputChars: 2_000_000,
+    })
+
+    expect(events[0]).toMatchObject({
+      commandFamilies: ["test"],
+      operationKind: "TEST",
+      facts: {
+        testSummary: {
+          failed: 1,
+          failedTests: ["auth::tests::login_rejects_bad_token"],
+          framework: "cargo-test",
+          passed: 9,
+          status: "failed",
+        },
+      },
+    })
+  })
 })
 
 function makeSession(traceEvents: readonly ParsedTraceEvent[]): ParsedSession {
