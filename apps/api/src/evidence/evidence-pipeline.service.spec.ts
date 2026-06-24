@@ -203,6 +203,61 @@ describe("EvidencePipelineService", () => {
       },
     })
   })
+
+  it("classifies go test commands and extracts go test summaries", () => {
+    const session = makeSession([
+      {
+        kind: "tool_call",
+        sourceEventKey: "call-go-test",
+        sequence: 1,
+        subSequence: 0,
+        callId: "call-go-test",
+        toolName: "exec_command",
+        rawPointer: { sourcePath: "fixture.jsonl", lineNumber: 1 },
+        arguments: { command: "go test ./..." },
+      },
+      {
+        kind: "tool_result",
+        sourceEventKey: "result-go-test",
+        sequence: 2,
+        subSequence: 0,
+        callId: "call-go-test",
+        rawPointer: { sourcePath: "fixture.jsonl", lineNumber: 2 },
+        result: {
+          exitCode: 1,
+          text: [
+            "--- FAIL: TestLogin (0.01s)",
+            "FAIL    github.com/example/project/auth 0.123s",
+            "ok      github.com/example/project/api 0.045s",
+          ].join("\n"),
+        },
+      },
+    ])
+
+    const events = new EvidencePipelineService().processSession(session, {
+      cwd: "/repo",
+      repositoryRoot: "/repo",
+      maxErrorsPerEvent: 20,
+      maxExcerptChars: 2_000,
+      maxPathsPerEvent: 100,
+      maxToolOutputChars: 2_000_000,
+    })
+
+    expect(events[0]).toMatchObject({
+      commandFamilies: ["test"],
+      operationKind: "TEST",
+      facts: {
+        testSummary: {
+          failed: 2,
+          failedFiles: ["github.com/example/project/auth"],
+          failedTests: ["TestLogin"],
+          framework: "go-test",
+          passed: 1,
+          status: "failed",
+        },
+      },
+    })
+  })
 })
 
 function makeSession(traceEvents: readonly ParsedTraceEvent[]): ParsedSession {

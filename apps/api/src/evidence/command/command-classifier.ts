@@ -62,6 +62,7 @@ function isTestCommand(
   tokens: readonly string[],
   scriptName: string | undefined,
 ): boolean {
+  if (command === "go" && tokens[1] === "test") return true
   if (TEST_RUNNERS.has(command)) return true
   if (scriptName !== undefined && /^test(:|$)|^spec(:|$)/.test(scriptName)) return true
   return PACKAGE_MANAGERS.has(command) && tokens.includes("test")
