@@ -4,7 +4,7 @@ import type { RepositorySnapshotService } from "../repositories/repository-snaps
 import { ExperiencePersistenceService } from "./experience-persistence.service.js"
 
 describe("ExperiencePersistenceService", () => {
-  it("persists the repository manifest hash on built experiences", async () => {
+  it("persists the repository manifest hash and dependency snapshot on built experiences", async () => {
     const prisma = createPrismaFake()
     const repositories = createRepositorySnapshots({
       manifestHash: "1".repeat(64),
@@ -20,6 +20,17 @@ describe("ExperiencePersistenceService", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           cwd: "/repo",
+          dependencySnapshot: expect.objectContaining({
+            packageName: "api",
+            topLevelDependencies: [
+              {
+                group: "dependencies",
+                majorVersion: 11,
+                name: "@nestjs/common",
+                versionRange: "^11.1.0",
+              },
+            ],
+          }),
           manifestHash: "1".repeat(64),
           repoKey: "repo-key",
         }),
@@ -112,7 +123,20 @@ function createRepositorySnapshots(input: {
         ({
           branch: "main",
           capturedAt: "2026-01-01T00:00:00.000Z",
-          dependencies: null,
+          dependencies: {
+            lockfiles: [{ fileName: "pnpm-lock.yaml", hash: "2".repeat(64), kind: "pnpm" }],
+            manifestHash: input.manifestHash,
+            packageManagers: ["pnpm"],
+            packageName: "api",
+            topLevelDependencies: [
+              {
+                group: "dependencies",
+                majorVersion: 11,
+                name: "@nestjs/common",
+                versionRange: "^11.1.0",
+              },
+            ],
+          },
           dirtyHash: "clean",
           gitHead: "a".repeat(40),
           manifestHash: input.manifestHash,

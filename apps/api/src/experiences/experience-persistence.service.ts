@@ -4,7 +4,7 @@ import {
   type AttemptOutcome,
   ExperienceBuildStatus,
   type ExperienceOutcome,
-  type Prisma,
+  Prisma,
 } from "@prisma/client"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { PrismaService } from "../database/prisma.service.js"
@@ -12,7 +12,7 @@ import {
   EXPERIENCE_BUILDER_VERSION,
   EXPERIENCE_SEARCH_DOCUMENT_VERSION,
 } from "../pipeline-versions.js"
-import type { RepositorySnapshot } from "../repositories/repository.types.js"
+import type { DependencySnapshot, RepositorySnapshot } from "../repositories/repository.types.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { RepositorySnapshotService } from "../repositories/repository-snapshot.service.js"
 import type { BuiltExperienceDraft, ExperienceTraceEvent } from "./experience.types.js"
@@ -71,6 +71,7 @@ export class ExperiencePersistenceService {
       claimedRevision,
       builtExperiences,
       repository?.manifestHash ?? null,
+      repository?.dependencies ?? null,
     )
     return builtExperiences.length
   }
@@ -98,6 +99,7 @@ export class ExperiencePersistenceService {
     claimedRevision: number,
     builtExperiences: readonly BuiltExperienceDraft[],
     manifestHash: string | null,
+    dependencySnapshot: DependencySnapshot | null,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const current = await tx.agentSession.findUnique({
@@ -115,7 +117,7 @@ export class ExperiencePersistenceService {
       const eventIds = await readTraceEventIds(tx, sessionId)
       for (const experience of builtExperiences) {
         const created = await tx.agentExperience.create({
-          data: toExperienceCreate(sessionId, experience, manifestHash),
+          data: toExperienceCreate(sessionId, experience, manifestHash, dependencySnapshot),
         })
         for (const attempt of experience.attempts) {
           const createdAttempt = await tx.agentAttempt.create({
@@ -172,6 +174,7 @@ function toExperienceCreate(
   sessionId: bigint,
   experience: BuiltExperienceDraft,
   manifestHash: string | null,
+  dependencySnapshot: DependencySnapshot | null,
 ) {
   return {
     sessionId,
@@ -190,6 +193,8 @@ function toExperienceCreate(
     repoKey: experience.repoKey,
     cwd: experience.cwd,
     manifestHash,
+    dependencySnapshot:
+      dependencySnapshot === null ? Prisma.JsonNull : (dependencySnapshot as Prisma.InputJsonValue),
     pathTokens: [...experience.pathTokens],
     symbolTokens: [...experience.symbolTokens],
     errorSignatures: [...experience.errorSignatures],
