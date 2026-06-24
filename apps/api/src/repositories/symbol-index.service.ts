@@ -7,10 +7,15 @@ import type { RepositorySymbolKind, RepositorySymbolSnapshot } from "./repositor
 
 type GrammarKind = "typescript" | "tsx"
 type TreeSitterLanguage = Parameters<Parser["setLanguage"]>[0]
-type SymbolCandidate = {
-  readonly kind: RepositorySymbolKind
-  readonly node: Parser.SyntaxNode
-}
+type SymbolCaptureName =
+  | "class"
+  | "enum"
+  | "function"
+  | "interface"
+  | "method"
+  | "property"
+  | "type"
+  | "variable"
 
 const MAX_INDEXED_FILES = 50
 const MAX_FILE_BYTES = 512 * 1024
@@ -18,17 +23,31 @@ const MAX_SYMBOLS = 1000
 const PARSE_TIMEOUT_MICROS = 50_000
 const SUPPORTED_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx"])
 const TOP_LEVEL_WRAPPERS = new Set(["ambient_declaration", "decorator", "export_statement"])
-const SIMPLE_NAME_TYPES = new Set([
-  "identifier",
-  "private_property_identifier",
-  "property_identifier",
-  "shorthand_property_identifier",
-  "type_identifier",
-])
+const SYMBOL_QUERY = `
+(function_declaration name: (identifier) @name) @function
+(generator_function_declaration name: (identifier) @name) @function
+(class_declaration name: (type_identifier) @name) @class
+(abstract_class_declaration name: (type_identifier) @name) @class
+(method_definition name: (property_identifier) @name) @method
+(method_signature name: (property_identifier) @name) @method
+(public_field_definition name: [(property_identifier) (private_property_identifier)] @name) @property
+(abstract_method_signature name: (property_identifier) @name) @property
+(property_signature name: (property_identifier) @name) @property
+(interface_declaration name: (type_identifier) @name) @interface
+(type_alias_declaration name: (type_identifier) @name) @type
+(enum_declaration name: (identifier) @name) @enum
+(lexical_declaration
+  (variable_declarator
+    name: (identifier) @name)) @variable
+(variable_declaration
+  (variable_declarator
+    name: (identifier) @name)) @variable
+`
 
 @Injectable()
 export class SymbolIndexService {
   private readonly parsers = new Map<GrammarKind, Parser>()
+  private readonly queries = new Map<GrammarKind, Parser.Query>()
 
   public async index(
     rootPath: string,
@@ -65,24 +84,20 @@ export class SymbolIndexService {
     }
     const tree = this.parserFor(grammarKind).parse(source)
     const symbols: RepositorySymbolSnapshot[] = []
-    walk(tree.rootNode, (node) => {
-      const candidate = symbolCandidate(node)
-      if (candidate === null || !shouldIndex(node)) {
-        return
-      }
-      const nameNode = candidate.node.childForFieldName("name")
-      if (nameNode === null || !SIMPLE_NAME_TYPES.has(nameNode.type)) {
-        return
+    for (const match of this.queryFor(grammarKind).matches(tree.rootNode)) {
+      const symbol = symbolFromMatch(match)
+      if (symbol === null || !shouldIndex(symbol.node)) {
+        continue
       }
       symbols.push({
-        column: candidate.node.startPosition.column + 1,
-        container: containerName(candidate.node),
-        kind: candidate.kind,
-        line: candidate.node.startPosition.row + 1,
-        name: nameNode.text,
+        column: symbol.node.startPosition.column + 1,
+        container: containerName(symbol.node),
+        kind: symbol.kind,
+        line: symbol.node.startPosition.row + 1,
+        name: symbol.name,
         path: relativePath,
       })
-    })
+    }
     return symbols
   }
 
@@ -97,38 +112,53 @@ export class SymbolIndexService {
     this.parsers.set(kind, parser)
     return parser
   }
+
+  private queryFor(kind: GrammarKind): Parser.Query {
+    const cached = this.queries.get(kind)
+    if (cached !== undefined) {
+      return cached
+    }
+    const query = new Parser.Query(languageFor(kind), SYMBOL_QUERY)
+    this.queries.set(kind, query)
+    return query
+  }
 }
 
 function languageFor(kind: GrammarKind): TreeSitterLanguage {
   return (kind === "tsx" ? TypeScript.tsx : TypeScript.typescript) as unknown as TreeSitterLanguage
 }
 
-function symbolCandidate(node: Parser.SyntaxNode): SymbolCandidate | null {
-  switch (node.type) {
-    case "abstract_class_declaration":
-    case "class_declaration":
-      return { kind: "class", node }
-    case "enum_declaration":
-      return { kind: "enum", node }
-    case "function_declaration":
-    case "generator_function_declaration":
-      return { kind: "function", node }
-    case "interface_declaration":
-      return { kind: "interface", node }
-    case "method_definition":
-    case "method_signature":
-      return { kind: "method", node }
-    case "abstract_method_signature":
-    case "public_field_definition":
-    case "property_signature":
-      return { kind: "property", node }
-    case "type_alias_declaration":
-      return { kind: "type", node }
-    case "variable_declarator":
-      return { kind: "variable", node }
-    default:
-      return null
+function symbolFromMatch(match: Parser.QueryMatch): {
+  readonly kind: RepositorySymbolKind
+  readonly name: string
+  readonly node: Parser.SyntaxNode
+} | null {
+  const name = match.captures.find((capture) => capture.name === "name")?.node.text
+  if (name === undefined) {
+    return null
   }
+  const declaration = match.captures.find((capture) => isSymbolCaptureName(capture.name))
+  if (declaration === undefined) {
+    return null
+  }
+  return {
+    kind: declaration.name as RepositorySymbolKind,
+    name,
+    node: declaration.node,
+  }
+}
+
+function isSymbolCaptureName(value: string): value is SymbolCaptureName {
+  return [
+    "class",
+    "enum",
+    "function",
+    "interface",
+    "method",
+    "property",
+    "type",
+    "variable",
+  ].includes(value)
 }
 
 function shouldIndex(node: Parser.SyntaxNode): boolean {
@@ -187,13 +217,6 @@ function findAncestor(node: Parser.SyntaxNode, types: readonly string[]): Parser
     current = current.parent
   }
   return null
-}
-
-function walk(node: Parser.SyntaxNode, visit: (node: Parser.SyntaxNode) => void): void {
-  visit(node)
-  for (const child of node.namedChildren) {
-    walk(child, visit)
-  }
 }
 
 async function readSupportedSource(filePath: string): Promise<string | null> {

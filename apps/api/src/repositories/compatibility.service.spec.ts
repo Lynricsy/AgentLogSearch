@@ -7,6 +7,7 @@ import { GitInspectorService } from "./git-inspector.service.js"
 import { RepositoryLocatorService } from "./repository-locator.service.js"
 import { RepositoryPathPolicyService } from "./repository-path-policy.service.js"
 import { RepositorySnapshotService } from "./repository-snapshot.service.js"
+import type { SymbolIndexService } from "./symbol-index.service.js"
 
 let roots: string[] = []
 
@@ -95,14 +96,63 @@ describe("CompatibilityService", () => {
 
     expect(result.reasonCodes).toContain("DEPENDENCY_VERSION_UNKNOWN")
   })
+
+  it("marks historical symbols present when Tree-sitter finds them in current files", async () => {
+    const repo = await createGitRepository()
+    await writeFile(path.join(repo, "src/current.ts"), "export const current = true\n")
+    await commitAll(repo, "add symbol")
+
+    const symbols = createSymbolIndexFake(["ScannerImporter", "importSession"])
+    const result = await createService(symbols).check({
+      currentRepositoryPath: repo,
+      historicalPaths: ["src/current.ts"],
+      historicalSymbols: ["ScannerImporter", "importSession"],
+    })
+
+    expect(symbols.index).toHaveBeenCalledWith(repo, ["src/current.ts"])
+    expect(result.reasonCodes).toContain("SYMBOL_STILL_EXISTS")
+    expect(result.reasonCodes).not.toContain("SYMBOL_INDEX_NOT_AVAILABLE")
+  })
+
+  it("marks historical symbols missing when current files no longer contain them", async () => {
+    const repo = await createGitRepository()
+    await writeFile(path.join(repo, "src/current.ts"), "export const different = true\n")
+    await commitAll(repo, "add different symbol")
+
+    const result = await createService(createSymbolIndexFake(["different"])).check({
+      currentRepositoryPath: repo,
+      historicalPaths: ["src/current.ts"],
+      historicalSymbols: ["ScannerImporter"],
+    })
+
+    expect(result.reasonCodes).toContain("SYMBOL_MISSING")
+    expect(result.score).toBeLessThan(1)
+  })
 })
 
-function createService(): CompatibilityService {
+function createService(
+  symbols: SymbolIndexService = createSymbolIndexFake([]),
+): CompatibilityService {
   const git = new GitInspectorService()
   const pathPolicy = new RepositoryPathPolicyService()
   const locator = new RepositoryLocatorService(git, pathPolicy)
   const snapshots = new RepositorySnapshotService(git, locator, new DependencySnapshotService())
-  return new CompatibilityService(git, snapshots)
+  return new CompatibilityService(git, snapshots, symbols)
+}
+
+function createSymbolIndexFake(symbolNames: readonly string[]): SymbolIndexService {
+  return {
+    index: jest.fn(async (_rootPath: string, paths: readonly string[]) =>
+      symbolNames.map((name, index) => ({
+        column: 1,
+        container: null,
+        kind: "function" as const,
+        line: index + 1,
+        name,
+        path: paths[0] ?? "src/current.ts",
+      })),
+    ),
+  } as unknown as SymbolIndexService
 }
 
 async function createGitRepository(): Promise<string> {

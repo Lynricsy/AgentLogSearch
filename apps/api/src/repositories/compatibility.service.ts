@@ -8,9 +8,12 @@ import type {
   RepositoryCompatibilityLevel,
   RepositoryCompatibilityResult,
   RepositoryFileStatus,
+  RepositorySymbolSnapshot,
 } from "./repository.types.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { RepositorySnapshotService } from "./repository-snapshot.service.js"
+// biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
+import { SymbolIndexService } from "./symbol-index.service.js"
 
 export const COMPATIBILITY_DISCLAIMER =
   "该结果只表示相关工程对象仍然存在或相似，不代表历史 patch 可以直接应用。"
@@ -20,6 +23,7 @@ export class CompatibilityService {
   public constructor(
     private readonly git: GitInspectorService,
     private readonly snapshots: RepositorySnapshotService,
+    private readonly symbols: SymbolIndexService,
   ) {}
 
   public async check(input: RepositoryCompatibilityInput): Promise<RepositoryCompatibilityResult> {
@@ -37,13 +41,21 @@ export class CompatibilityService {
     const files = await Promise.all(
       paths.map((historicalPath) => fileStatus(snapshot.rootPath, historicalPath, renameMap)),
     )
+    const historicalSymbols = unique(
+      (input.historicalSymbols ?? []).map(normalizeSymbolName).filter(isPresent),
+    )
+    const currentSymbols =
+      historicalSymbols.length === 0
+        ? []
+        : await this.symbols.index(snapshot.rootPath, symbolIndexPaths(files))
     const score = scoreCompatibility({
       files,
       historicalManifestHash: input.historicalManifestHash ?? null,
       historicalRepoKey: input.historicalRepoKey ?? null,
+      historicalSymbols,
       manifestHash: snapshot.manifestHash,
       repoKey: snapshot.repoKey,
-      symbolCount: input.historicalSymbols?.length ?? 0,
+      symbols: currentSymbols,
     })
 
     return {
@@ -85,9 +97,10 @@ function scoreCompatibility(input: {
   readonly files: readonly RepositoryFileStatus[]
   readonly historicalManifestHash: string | null
   readonly historicalRepoKey: string | null
+  readonly historicalSymbols: readonly string[]
   readonly manifestHash: string | null
   readonly repoKey: string
-  readonly symbolCount: number
+  readonly symbols: readonly RepositorySymbolSnapshot[]
 }): {
   readonly coverage: number
   readonly level: RepositoryCompatibilityLevel
@@ -124,9 +137,14 @@ function scoreCompatibility(input: {
     reasonCodes.push("FILES_UNKNOWN")
   }
 
-  if (input.symbolCount > 0) {
-    signals.push({ score: 0.5, weight: 0.15 })
-    reasonCodes.push("SYMBOL_INDEX_NOT_AVAILABLE")
+  if (input.historicalSymbols.length > 0) {
+    const currentSymbolNames = new Set(input.symbols.map((symbol) => symbol.name))
+    const matched = input.historicalSymbols.filter((symbol) =>
+      currentSymbolNames.has(symbol),
+    ).length
+    const symbolScore = matched / input.historicalSymbols.length
+    signals.push({ score: symbolScore, weight: 0.15 })
+    reasonCodes.push(symbolScore === 1 ? "SYMBOL_STILL_EXISTS" : "SYMBOL_MISSING")
   } else {
     reasonCodes.push("SYMBOLS_UNKNOWN")
   }
@@ -190,6 +208,23 @@ function normalizeRelativePath(value: string): string | null {
     return null
   }
   return normalized
+}
+
+function normalizeSymbolName(value: string): string | null {
+  const normalized = value.trim()
+  if (normalized.length === 0 || normalized.includes("\0")) {
+    return null
+  }
+  return normalized
+}
+
+function symbolIndexPaths(files: readonly RepositoryFileStatus[]): readonly string[] {
+  return files.flatMap((file) => {
+    if (file.currentPath === null || file.status === "missing") {
+      return []
+    }
+    return [file.currentPath]
+  })
 }
 
 function isPresent<T>(value: T | null): value is T {
