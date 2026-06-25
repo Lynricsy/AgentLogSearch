@@ -141,6 +141,9 @@ describe("AgentLogSearch MCP server", () => {
         .properties,
     ).toHaveProperty("query")
     expect(
+      tools.tools.find((tool) => tool.name === "search_engineering_history")?.description,
+    ).toContain("自然语言")
+    expect(
       tools.tools.find((tool) => tool.name === "get_experience_evidence")?.inputSchema.properties,
     ).toHaveProperty("id")
   })
@@ -163,6 +166,15 @@ describe("AgentLogSearch MCP server", () => {
       data: { successful: [{ id: "61" }] },
       disclaimer: HISTORY_RESULT_DISCLAIMER,
       kind: "experience_search",
+      summary: {
+        best: {
+          id: "61",
+          summary: "运行测试发现 TS2322",
+        },
+        nextSteps: expect.arrayContaining([
+          "先调用 get_experience_evidence，id=61，确认历史证据是否真的适用。",
+        ]),
+      },
     })
     expect(apiClient.searchRequests).toEqual(["TS2322 scanner importer"])
   })
@@ -193,6 +205,34 @@ describe("AgentLogSearch MCP server", () => {
         status: 503,
       },
       kind: "experience_search",
+    })
+  })
+
+  it("returns readable evidence summaries for a single experience", async () => {
+    const { client } = await createTestClient()
+    const result = await client.callTool({
+      arguments: { id: "61" },
+      name: "get_experience_evidence",
+    })
+
+    const payload = parseTextPayload(result)
+    expect(payload).toMatchObject({
+      data: { id: "61" },
+      kind: "experience_evidence",
+      summary: {
+        attempts: [
+          expect.objectContaining({
+            errorsAfter: ["TS2322"],
+            paths: ["apps/api/src/scanner/scanner-importer.ts"],
+            summary: "修改 apps/api/src/scanner/scanner-importer.ts",
+          }),
+        ],
+        experience: {
+          id: "61",
+          summary: "运行测试发现 TS2322",
+        },
+        nextSteps: expect.arrayContaining(["用 evidence 判断历史结论是否可靠；不要只看标题。"]),
+      },
     })
   })
 })

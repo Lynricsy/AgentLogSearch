@@ -619,14 +619,14 @@ version are current. A new scan can mark a session pending without deleting the 
 experience set first, while a search document version bump makes older experience documents stale
 until the background worker rebuilds them.
 
-`POST /api/experiences/search` performs a conservative lexical and structured search over built
-experiences. Dense experience embeddings are still a later milestone, so this endpoint currently
-ranks by code/error/path/symbol/command overlap and evidence score. The plain `query` field is also
-expanded for fuzzy engineering searches: camelCase/dotted calls such as `historyFile.findUnique`,
-module words such as `scanner`, and aliases such as `Prisma`/`schema` can match related symbols and
-paths even when callers do not fill `files` or `symbols`. Built experience documents include
-bounded diagnostic excerpts from the original trace, so errors discovered during investigation can
-be found later from approximate natural-language or code-fragment queries.
+`POST /api/experiences/search` performs hybrid retrieval over built experiences. It pre-indexes
+experience candidates, expands Chinese natural-language text into n-gram signals, expands
+camelCase/dotted calls such as `historyFile.findUnique`, recognizes module words such as `scanner`,
+and maps aliases such as `Prisma`/`schema` to related symbols and paths. Ranking combines lexical
+recall, rare-token weighting, phrase hits, error/path/symbol/command overlap, evidence score,
+outcome usefulness, and focus penalties for very broad experiences. Dense experience embeddings are
+still a later milestone, but fuzzy natural-language or diagnostic-code queries should already find
+the most relevant actionable experience without requiring precise file or symbol fields.
 
 Request body:
 
@@ -656,6 +656,16 @@ Responses are grouped by outcome:
 Each result includes the experience id, session id, task summary, evidence level/reason codes,
 score breakdown, matched path/error tokens, attempts, and evidence event summaries. It does not
 return full raw tool output.
+
+For regression testing against local data, run:
+
+```bash
+pnpm --filter api evaluate:experience-search --limit 60 --top-k 10
+```
+
+The evaluator builds natural, diagnostic, and fielded queries from current `READY` experiences,
+groups duplicate experiences by title/task, and reports top-k hit rates plus MRR. It is intended for
+algorithm tuning and should be run against the same database/API dataset you want to evaluate.
 
 When `repositoryPath` is provided, search results also include a static repository compatibility
 block. The API compares the historical experience paths and repo key against the current Git tree,
@@ -737,9 +747,20 @@ The default API base URL is `http://127.0.0.1:3000/api`. Override it with
 
 Available tools:
 
-- `search_engineering_history`: wraps `POST /api/experiences/search`.
-- `check_failed_attempt`: wraps `POST /api/experiences/check-failed-attempt`.
-- `get_experience_evidence`: wraps `GET /api/experiences/:id`.
+- `search_engineering_history`: wraps `POST /api/experiences/search`. Call this first when the
+  Agent does not know how to proceed, has an error/screenshot text, or wants prior engineering
+  context. `query` can be natural language; fill `files`/`symbols` only when known.
+- `check_failed_attempt`: wraps `POST /api/experiences/check-failed-attempt`. Call this before a
+  risky planned edit or command to identify similar historical failures.
+- `get_experience_evidence`: wraps `GET /api/experiences/:id`. Call this after search/check returns
+  a promising result, then confirm attempts, validation, evidence, and current applicability.
+
+Every MCP response includes:
+
+- `summary`: a compact Agent-readable view with best matches, attempts, evidence, totals, risk, and
+  next steps depending on the tool.
+- `guidance`: short instructions for how to interpret and follow up on that tool response.
+- `data`: the original API payload for clients that need the full structured contract.
 
 The MCP server intentionally does not expose command execution, file editing, patch application,
 agent resume, or direct database tools. Every tool response includes this disclaimer:
