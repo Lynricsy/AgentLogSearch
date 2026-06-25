@@ -104,11 +104,13 @@ export function isUsefulDisplayToken(token: string, preferPath: boolean): boolea
 export function cleanSentence(value: string): string {
   return value
     .replace(/\s+/g, " ")
+    .replace(/# Files mentioned by the user:.*?(?=## My request for Codex:|$)/i, "")
+    .replace(/## My request for Codex:\s*/i, "")
+    .replace(/\/root\/\.codex\/attachments\/[^\s]+/g, "附件")
     .replace(/n\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//g, "")
     .replace(/\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//g, "")
     .replace(/\/root\/Projects\/Cources\/ComprehensiveProject\//g, "")
     .replace(/(^|\s)([ab])\//g, "$1")
-    .replace(/# Files mentioned by the user:.*/i, "")
     .replace(/<subagent_notification>.*$/i, "")
     .trim()
 }

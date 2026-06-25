@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react"
 import { type ApiClient, ApiClientError, apiClient } from "../lib/api"
 import { formatReasonCode } from "../lib/evidence-labels"
 import {
+  cleanSentence,
   compactSummary,
   displayTokens,
   hiddenCount,
@@ -98,6 +99,7 @@ function ExperienceDetailContent({ state }: { readonly state: ExperienceDetailSt
   const paths = relevantExperiencePaths(experience)
   const errors = relevantExperienceErrors(experience)
   const commands = relevantCommands(experience)
+  const taskHint = cleanSentence(experience.taskText)
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -110,9 +112,9 @@ function ExperienceDetailContent({ state }: { readonly state: ExperienceDetailSt
           </div>
           <h2 className="mt-4 text-sm font-semibold text-[var(--app-ink)]">经验结论</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--app-ink)]">{summary}</p>
-          <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">
-            原始任务：{experience.taskText}
-          </p>
+          {taskHint.length > 0 ? (
+            <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">任务线索：{taskHint}</p>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-1.5">
             {experience.evidenceReasonCodes.map((code) => (
               <span
