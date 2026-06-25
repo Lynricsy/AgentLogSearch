@@ -6,10 +6,14 @@ export function displayToken(value: string): string {
   return value
     .trim()
     .replaceAll("\\", "/")
+    .replace(/^n(?=\/root\/)/, "")
+    .replace(/(^|\s)([ab])\//g, "$1")
     .replace(/^n\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//, "")
     .replace(/^\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//, "")
     .replace(/^\/root\/Projects\/Cources\/ComprehensiveProject\//, "")
     .replace(/^\/host-history\//, "history/")
+    .replace(/:\d+:\d+$/, "")
+    .replace(/:\d+$/, "")
     .replace(/^['"`]+|['"`]+$/g, "")
 }
 
@@ -100,13 +104,21 @@ export function isUsefulDisplayToken(token: string, preferPath: boolean): boolea
 export function cleanSentence(value: string): string {
   return value
     .replace(/\s+/g, " ")
+    .replace(/n\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//g, "")
+    .replace(/\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//g, "")
+    .replace(/\/root\/Projects\/Cources\/ComprehensiveProject\//g, "")
+    .replace(/(^|\s)([ab])\//g, "$1")
     .replace(/# Files mentioned by the user:.*/i, "")
     .replace(/<subagent_notification>.*$/i, "")
     .trim()
 }
 
 export function hiddenCount(values: readonly string[], shown: readonly string[]): number {
-  return Math.max(0, new Set(values.map(displayToken)).size - shown.length)
+  const shownSet = new Set(shown)
+  const usefulValues = values
+    .map(displayToken)
+    .filter((token) => isUsefulDisplayToken(token, false) && !shownSet.has(token))
+  return new Set(usefulValues).size
 }
 
 function isBoilerplateSummary(value: string): boolean {

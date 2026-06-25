@@ -202,6 +202,7 @@ describe("shared domain contracts", () => {
         pathMatch: 1,
         commandMatch: 0.8,
         evidenceFactor: 0.91,
+        outcomeFactor: 1.08,
         compatibilityFactor: 0.93,
         finalScore: 0.86,
       },

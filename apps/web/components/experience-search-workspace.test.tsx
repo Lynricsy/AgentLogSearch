@@ -32,6 +32,31 @@ describe("ExperienceSearchWorkspace", () => {
         return {
           failedAttempts: [
             experienceSummary({
+              attempts: [
+                {
+                  affectedPaths: [
+                    "n/root/Projects/Cources/ComprehensiveProject/CliSearch/apps/api/src/scanner/scanner-importer.ts:90:37",
+                    "a/apps/api/src/scanner/scanner-importer.ts",
+                    "b/apps/api/src/scanner/scanner-importer.ts",
+                  ],
+                  affectedSymbols: ["ScannerImporter"],
+                  commandFamilies: ["test"],
+                  createdAt: timestamp,
+                  endSeq: 10,
+                  errorAfter: ["TS2322"],
+                  errorBefore: [],
+                  evidenceLinks: [],
+                  experienceId: "61",
+                  id: "71",
+                  outcome: "FAILED",
+                  outcomeConfidence: 0.9,
+                  reasonCodes: ["VALIDATION_FAILED"],
+                  startSeq: 1,
+                  actionSignature: "修改 scanner importer",
+                  actionTokens: ["scanner"],
+                  attemptIndex: 0,
+                },
+              ],
               compatibility: {
                 coverage: 0.7,
                 disclaimer:
@@ -63,6 +88,12 @@ describe("ExperienceSearchWorkspace", () => {
                   repoKey: "CliSearch",
                 },
               },
+              pathTokens: [
+                "n/root/Projects/Cources/ComprehensiveProject/CliSearch/apps/api/src/scanner/scanner-importer.ts:90:37",
+                "a/apps/api/src/scanner/scanner-importer.ts",
+                "b/apps/api/src/scanner/scanner-importer.ts",
+                "schema.prisma",
+              ],
               scoreBreakdown: {
                 commandMatch: 1,
                 compatibilityFactor: 0.5,
@@ -72,6 +103,8 @@ describe("ExperienceSearchWorkspace", () => {
                 pathMatch: 1,
                 symbolMatch: 1,
               },
+              templateSummary:
+                "最后一次涉及 n/root/Projects/Cources/ComprehensiveProject/CliSearch/apps/api/src/scanner/scanner-importer.ts:90:37, a/apps/api/src/scanner/scanner-importer.ts，随后测试通过。",
             }),
           ],
           partial: [],
@@ -89,6 +122,16 @@ describe("ExperienceSearchWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "搜索经验" }))
 
     expect(await screen.findByText("修复 scanner 导入")).toBeVisible()
+    expect(
+      screen.getByText(/最后一次涉及 apps\/api\/src\/scanner\/scanner-importer.ts/),
+    ).toBeVisible()
+    expect(
+      screen.queryByText(/n\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch/),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText("a/apps/api/src/scanner/scanner-importer.ts")).not.toBeInTheDocument()
+    expect(screen.queryByText("b/apps/api/src/scanner/scanner-importer.ts")).not.toBeInTheDocument()
+    expect(screen.getByText("apps/api/src/scanner/scanner-importer.ts")).toBeVisible()
+    expect(screen.getByText("schema.prisma")).toBeVisible()
     expect(screen.getByText("当前状态匹配")).toBeVisible()
     expect(screen.getByText("已过期")).toBeVisible()
     expect(screen.getByText("所有相关文件缺失")).toBeVisible()

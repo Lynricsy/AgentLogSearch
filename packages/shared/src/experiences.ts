@@ -53,11 +53,11 @@ export const experienceScoreBreakdownSchema = z.object({
   pathMatch: z.number().min(0).max(1).nullable().optional(),
   symbolMatch: z.number().min(0).max(1).nullable().optional(),
   commandMatch: z.number().min(0).max(1).nullable().optional(),
-  evidenceFactor: z.number().min(0).max(1).nullable().optional(),
-  outcomeFactor: z.number().min(0).max(1).nullable().optional(),
+  evidenceFactor: z.number().min(0).max(2).nullable().optional(),
+  outcomeFactor: z.number().min(0).max(2).nullable().optional(),
   phraseMatch: z.number().min(0).max(1).nullable().optional(),
-  specificityFactor: z.number().min(0).max(1).nullable().optional(),
-  compatibilityFactor: z.number().min(0).max(1).nullable().optional(),
+  specificityFactor: z.number().min(0).max(2).nullable().optional(),
+  compatibilityFactor: z.number().min(0).max(2).nullable().optional(),
   finalScore: z.number().min(0).max(1),
 })
 
