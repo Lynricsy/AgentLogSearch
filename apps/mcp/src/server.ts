@@ -243,7 +243,9 @@ function summarizeExperience(experience: ExperienceSummary) {
     errors: displayTokens([...experience.matchedErrors, ...experience.errorCodes], 5),
     id: experience.id,
     outcome: experience.outcome,
-    paths: displayTokens([...experience.matchedPaths, ...experience.pathTokens], 6),
+    paths: displayTokens([...experience.matchedPaths, ...experience.pathTokens], 6, {
+      preferPaths: true,
+    }),
     score: round(experience.scoreBreakdown.finalScore),
     summary: bestSummary(experience),
     title: experience.title,
@@ -259,7 +261,7 @@ function summarizeFailedAttemptMatch(match: FailedAttemptMatch) {
       outcome: match.experience.outcome,
       title: match.experience.title,
     },
-    paths: displayTokens(match.matchedPaths, 5),
+    paths: displayTokens(match.matchedPaths, 5, { preferPaths: true }),
     risk: match.risk,
     score: round(match.score),
     symbols: displayTokens(match.matchedSymbols, 5),
@@ -267,7 +269,7 @@ function summarizeFailedAttemptMatch(match: FailedAttemptMatch) {
 }
 
 function summarizeAttemptAction(attempt: ExperienceDetail["attempts"][number]): string {
-  const paths = displayTokens(attempt.affectedPaths, 3)
+  const paths = displayTokens(attempt.affectedPaths, 3, { preferPaths: true })
   if (paths.length > 0) return `修改 ${paths.join("、")}`
   const symbols = displayTokens(attempt.affectedSymbols, 3)
   if (symbols.length > 0) return `涉及 ${symbols.join("、")}`
@@ -303,34 +305,66 @@ function bestSummary(experience: Pick<ExperienceSummary, "taskText" | "templateS
   return cleanSentence(experience.taskText)
 }
 
-function displayTokens(values: readonly string[], limit: number): readonly string[] {
-  return [...new Set(values.map(displayToken).filter(isUsefulToken))].slice(0, limit)
+function displayTokens(
+  values: readonly string[],
+  limit: number,
+  options: { readonly preferPaths?: boolean } = {},
+): readonly string[] {
+  return [
+    ...new Set(values.map(displayToken).filter((token) => isUsefulToken(token, options))),
+  ].slice(0, limit)
 }
 
 function displayToken(value: string): string {
   return value
     .trim()
     .replaceAll("\\", "/")
+    .replace(/^n(?=\/root\/)/, "")
+    .replace(/(^|\s)([ab])\//g, "$1")
     .replace(/^n\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//, "")
     .replace(/^\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//, "")
     .replace(/^\/root\/Projects\/Cources\/ComprehensiveProject\//, "")
+    .replace(/^\/host-history\//, "history/")
+    .replace(/:\d+:\d+$/, "")
+    .replace(/:\d+$/, "")
     .replace(/^['"`]+|['"`]+$/g, "")
 }
 
-function isUsefulToken(token: string): boolean {
+function isUsefulToken(token: string, options: { readonly preferPaths?: boolean }): boolean {
   if (token.length < 2) return false
   if (/^\d+$/.test(token)) return false
+  if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(token)) return false
   if (/^[a-f0-9]{12,}$/i.test(token)) return false
   if (/^[a-f0-9-]{16,}$/i.test(token)) return false
+  if (/^message:\d+/i.test(token)) return false
+  if (options.preferPaths) {
+    return (token.includes("/") && hasPathShape(token)) || hasFileExtension(token)
+  }
   return true
 }
 
 function cleanSentence(value: string): string {
   return value
     .replace(/\s+/g, " ")
+    .replace(/n\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//g, "")
+    .replace(/\/root\/Projects\/Cources\/ComprehensiveProject\/CliSearch\//g, "")
+    .replace(/\/root\/Projects\/Cources\/ComprehensiveProject\//g, "")
+    .replace(/(^|\s)([ab])\//g, "$1")
     .replace(/# Files mentioned by the user:.*/i, "")
     .replace(/<subagent_notification>.*$/i, "")
     .trim()
+}
+
+function hasFileExtension(value: string): boolean {
+  return /\.(?:[cm]?[jt]sx?|json|md|prisma|sql|ya?ml|toml|rs|go|py|java|kt|swift|php|rb)$/i.test(
+    value,
+  )
+}
+
+function hasPathShape(value: string): boolean {
+  if (!/[./]/.test(value)) return false
+  if (!/[a-z0-9_-]+\.[a-z0-9]+/i.test(value) && !value.includes("/src/")) return false
+  return true
 }
 
 function isBoilerplate(value: string): boolean {

@@ -12,7 +12,11 @@ const timestamp = "2026-06-16T09:00:00.000Z"
 const attemptPayload = {
   actionSignature: "run tests",
   actionTokens: ["test"],
-  affectedPaths: ["apps/api/src/scanner/scanner-importer.ts"],
+  affectedPaths: [
+    "n/root/Projects/Cources/ComprehensiveProject/CliSearch/apps/api/src/scanner/scanner-importer.ts:90:37",
+    "a/apps/api/src/scanner/scanner-importer.ts",
+    "b/apps/api/src/scanner/scanner-importer.ts",
+  ],
   affectedSymbols: ["ScannerImporter"],
   attemptIndex: 0,
   commandFamilies: ["test"],
@@ -67,9 +71,17 @@ const experiencePayload = {
   id: "61",
   kind: "code_change",
   matchedErrors: ["TS2322"],
-  matchedPaths: ["apps/api/src/scanner/scanner-importer.ts"],
+  matchedPaths: [
+    "n/root/Projects/Cources/ComprehensiveProject/CliSearch/apps/api/src/scanner/scanner-importer.ts:90:37",
+  ],
   outcome: "FAILED",
-  pathTokens: ["apps/api/src/scanner/scanner-importer.ts"],
+  pathTokens: [
+    "n/root/Projects/Cources/ComprehensiveProject/CliSearch/apps/api/src/scanner/scanner-importer.ts:90:37",
+    "a/apps/api/src/scanner/scanner-importer.ts",
+    "b/apps/api/src/scanner/scanner-importer.ts",
+    "06/25/2026",
+    "update/verify",
+  ],
   repoKey: "CliSearch",
   scoreBreakdown: {
     commandMatch: 1,
@@ -85,7 +97,8 @@ const experiencePayload = {
   successfulAttemptCount: 0,
   symbolTokens: ["ScannerImporter"],
   taskText: "修复 scanner 导入类型错误",
-  templateSummary: "运行测试发现 TS2322",
+  templateSummary:
+    "运行测试发现 n/root/Projects/Cources/ComprehensiveProject/CliSearch/apps/api/src/scanner/scanner-importer.ts:90:37 的 TS2322",
   title: "修复 scanner 导入",
   unverifiedAttemptCount: 0,
   updatedAt: timestamp,
@@ -169,7 +182,8 @@ describe("AgentLogSearch MCP server", () => {
       summary: {
         best: {
           id: "61",
-          summary: "运行测试发现 TS2322",
+          paths: ["apps/api/src/scanner/scanner-importer.ts"],
+          summary: "运行测试发现 apps/api/src/scanner/scanner-importer.ts:90:37 的 TS2322",
         },
         nextSteps: expect.arrayContaining([
           "先调用 get_experience_evidence，id=61，确认历史证据是否真的适用。",
@@ -229,7 +243,8 @@ describe("AgentLogSearch MCP server", () => {
         ],
         experience: {
           id: "61",
-          summary: "运行测试发现 TS2322",
+          paths: ["apps/api/src/scanner/scanner-importer.ts"],
+          summary: "运行测试发现 apps/api/src/scanner/scanner-importer.ts:90:37 的 TS2322",
         },
         nextSteps: expect.arrayContaining(["用 evidence 判断历史结论是否可靠；不要只看标题。"]),
       },
