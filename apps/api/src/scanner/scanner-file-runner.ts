@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common"
+import { readEvidenceConfig } from "../evidence/evidence.config.js"
 import type { ParserSource } from "../parsers/index.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { ParseFailureError, ParserRegistry } from "../parsers/index.js"
-import { EVIDENCE_EXTRACTOR_VERSION, TRACE_PARSER_VERSION } from "../pipeline-versions.js"
+import { evidenceExtractorVersionFor, TRACE_PARSER_VERSION } from "../pipeline-versions.js"
 import type { MutableScanCounters, SourceConfig } from "./scanner.types.js"
 import { ScannerParseIssuesError } from "./scanner-errors.js"
 import { fingerprintSource } from "./scanner-fingerprint.js"
@@ -90,10 +91,11 @@ async function isUnchanged(
   const history = await historyFile.findUnique({
     where: { sourceId_filePath: { sourceId, filePath } },
   })
+  const expectedEvidenceVersion = evidenceExtractorVersionFor(readEvidenceConfig().pipelineEnabled)
   return (
     history?.fileHash === hash &&
     history.traceParserVersion === TRACE_PARSER_VERSION &&
-    history.evidenceExtractorVersion === EVIDENCE_EXTRACTOR_VERSION
+    history.evidenceExtractorVersion === expectedEvidenceVersion
   )
 }
 

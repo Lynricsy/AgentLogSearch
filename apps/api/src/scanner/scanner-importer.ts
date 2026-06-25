@@ -8,7 +8,11 @@ import { readEvidenceConfig } from "../evidence/evidence.config.js"
 import { EvidencePipelineService } from "../evidence/evidence-pipeline.service.js"
 import type { NormalizedTraceEventDraft } from "../evidence/evidence-types.js"
 import type { ParsedMessage, ParsedSession, ParsedTraceEvent } from "../parsers/index.js"
-import { EVIDENCE_EXTRACTOR_VERSION, TRACE_PARSER_VERSION } from "../pipeline-versions.js"
+import {
+  EVIDENCE_EXTRACTOR_VERSION,
+  evidenceExtractorVersionFor,
+  TRACE_PARSER_VERSION,
+} from "../pipeline-versions.js"
 import type { ChunkDraft } from "../scanner/chunker.service.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { ChunkerService } from "../scanner/chunker.service.js"
@@ -42,6 +46,7 @@ async function importFileWithClient(
   chunker: ChunkerService,
   evidencePipeline: EvidencePipelineService,
 ): Promise<FileImportStats> {
+  const evidenceVersion = evidenceExtractorVersionFor(readEvidenceConfig().pipelineEnabled)
   const history = await tx.historyFile.upsert({
     where: {
       sourceId_filePath: { sourceId: input.source.id, filePath: input.parserSource.filePath },
@@ -56,7 +61,7 @@ async function importFileWithClient(
       parseStatus: "processing",
       errorMessage: null,
       traceParserVersion: TRACE_PARSER_VERSION,
-      evidenceExtractorVersion: EVIDENCE_EXTRACTOR_VERSION,
+      evidenceExtractorVersion: evidenceVersion,
     },
     update: {
       fileHash: input.fingerprint.hash,
@@ -66,7 +71,7 @@ async function importFileWithClient(
       parseStatus: "processing",
       errorMessage: null,
       traceParserVersion: TRACE_PARSER_VERSION,
-      evidenceExtractorVersion: EVIDENCE_EXTRACTOR_VERSION,
+      evidenceExtractorVersion: evidenceVersion,
     },
   })
 

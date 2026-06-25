@@ -8,7 +8,7 @@ import { PrismaService } from "../database/prisma.service.js"
 import { EvidencePipelineService } from "../evidence/evidence-pipeline.service.js"
 import type { ParseResult } from "../parsers/index.js"
 import { ParseFailureError, ParserRegistry } from "../parsers/index.js"
-import { EVIDENCE_EXTRACTOR_VERSION, TRACE_PARSER_VERSION } from "../pipeline-versions.js"
+import { evidenceExtractorVersionFor, TRACE_PARSER_VERSION } from "../pipeline-versions.js"
 import { ChunkerService } from "../scanner/chunker.service.js"
 import { ScannerConflictError, ScannerService } from "./scanner.service.js"
 import { ScannerFileRunner } from "./scanner-file-runner.js"
@@ -30,7 +30,7 @@ describe("ScannerService", () => {
     const prisma = createPrismaFake()
     const source = prisma.addSource({ fileGlob: "*.jsonl", rootPath: rootOf(filePath) })
     prisma.addHistoryFile({
-      evidenceExtractorVersion: EVIDENCE_EXTRACTOR_VERSION,
+      evidenceExtractorVersion: evidenceExtractorVersionFor(false),
       fileHash: fingerprint,
       filePath,
       sourceId: source.id,
@@ -67,10 +67,43 @@ describe("ScannerService", () => {
     expect(result.filesParsed).toBe(1)
     expect(parser.calls).toBe(1)
     expect(history.traceParserVersion).toBe(TRACE_PARSER_VERSION)
-    expect(history.evidenceExtractorVersion).toBe(EVIDENCE_EXTRACTOR_VERSION)
+    expect(history.evidenceExtractorVersion).toBe(evidenceExtractorVersionFor(false))
     expect(session.traceRevision).toBe(1)
     expect(session.experienceBuildStatus).toBe("READY")
     expect(session.experienceReadyAt).toBeInstanceOf(Date)
+  })
+
+  it("reimports an unchanged file when evidence pipeline enablement changes", async () => {
+    // Given
+    const previousFlag = readEnv("EVIDENCE_PIPELINE_ENABLED")
+    writeEnv("EVIDENCE_PIPELINE_ENABLED", "true")
+    const filePath = await writeHistory("unchanged-evidence-toggle.jsonl", "same")
+    const fingerprint = sha256("same")
+    const prisma = createPrismaFake()
+    const source = prisma.addSource({ fileGlob: "*.jsonl", rootPath: rootOf(filePath) })
+    prisma.addHistoryFile({
+      evidenceExtractorVersion: evidenceExtractorVersionFor(false),
+      fileHash: fingerprint,
+      filePath,
+      sourceId: source.id,
+      traceParserVersion: TRACE_PARSER_VERSION,
+    })
+    const parser = createParserFake(makeParseResult(filePath, "thread-evidence-toggle"))
+    const service = await createScanner(prisma, parser)
+
+    try {
+      // When
+      const result = await service.runSource(source.id)
+
+      // Then
+      expect(result.filesParsed).toBe(1)
+      expect(parser.calls).toBe(1)
+      expect(prisma.onlyHistoryFile().evidenceExtractorVersion).toBe(
+        evidenceExtractorVersionFor(true),
+      )
+    } finally {
+      restoreEnv("EVIDENCE_PIPELINE_ENABLED", previousFlag)
+    }
   })
 
   it("reimports a changed file and replaces messages in one transaction", async () => {
