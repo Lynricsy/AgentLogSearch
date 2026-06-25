@@ -1,4 +1,4 @@
-import { ExperienceSearchService } from "./experience-search.service.js"
+import { ExperienceSearchService, toEvidenceEventSummary } from "./experience-search.service.js"
 import { FailedAttemptSearchService } from "./failed-attempt-search.service.js"
 
 describe("ExperienceSearchService", () => {
@@ -356,6 +356,26 @@ describe("ExperienceSearchService", () => {
     })
     expect(result.matches[0]?.attempt.id).toBe("31")
     expect(result.matches[0]?.evidenceEvents[0]?.redactedExcerpt).toContain("TS2339")
+  })
+
+  it("normalizes parser raw pointers for evidence detail responses", () => {
+    expect(
+      toEvidenceEventSummary(
+        evidenceEvent({
+          id: 101n,
+          sessionId: 10n,
+          rawPointer: {
+            jsonPath: "/payload/content",
+            lineNumber: 42,
+            sourcePath: "/history/session.jsonl",
+          },
+        }),
+      ).rawPointer,
+    ).toEqual({
+      filePath: "/history/session.jsonl",
+      jsonPointer: "/payload/content",
+      line: 42,
+    })
   })
 })
 

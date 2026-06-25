@@ -674,11 +674,54 @@ export function toEvidenceEventSummary(event: {
     errorSignatures: [...event.errorSignatures],
     errorCodes: [...event.errorCodes],
     commandFamilies: [...event.commandFamilies],
-    rawPointer: typeof event.rawPointer === "object" ? event.rawPointer : null,
+    rawPointer: toEvidenceRawPointer(event.rawPointer),
     rawContentSha256: event.rawContentSha256,
     contentHash: event.contentHash,
     extractorVersion: event.extractorVersion,
   }
+}
+
+function toEvidenceRawPointer(rawPointer: unknown): EvidenceEventSummary["rawPointer"] {
+  if (rawPointer === null || typeof rawPointer !== "object" || Array.isArray(rawPointer)) {
+    return null
+  }
+  const input = rawPointer as {
+    readonly filePath?: unknown
+    readonly sourcePath?: unknown
+    readonly line?: unknown
+    readonly lineNumber?: unknown
+    readonly messageIndex?: unknown
+    readonly jsonPointer?: unknown
+    readonly jsonPath?: unknown
+  }
+  const filePath = readNonEmptyString(input.filePath) ?? readNonEmptyString(input.sourcePath)
+  const line = readPositiveInteger(input.line) ?? readPositiveInteger(input.lineNumber)
+  const messageIndex = readNonNegativeInteger(input.messageIndex)
+  const jsonPointer = readString(input.jsonPointer) ?? readString(input.jsonPath)
+  const normalized = {
+    ...(filePath === undefined ? {} : { filePath }),
+    ...(line === undefined ? {} : { line }),
+    ...(messageIndex === undefined ? {} : { messageIndex }),
+    ...(jsonPointer === undefined ? {} : { jsonPointer }),
+  }
+  return Object.keys(normalized).length === 0 ? null : normalized
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined
+}
+
+function readNonEmptyString(value: unknown): string | undefined {
+  const text = readString(value)
+  return text === undefined || text.length === 0 ? undefined : text
+}
+
+function readPositiveInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : undefined
+}
+
+function readNonNegativeInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : undefined
 }
 
 function groupSummaries(
