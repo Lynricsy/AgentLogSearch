@@ -18,6 +18,8 @@ import { toNullableDate } from "./scanner-utils.js"
 
 type ImportClient = Prisma.TransactionClient | PrismaService
 
+export const DEFAULT_SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS = 120_000
+
 @Injectable()
 export class ScannerImporter {
   public constructor(
@@ -27,8 +29,9 @@ export class ScannerImporter {
   ) {}
 
   public async importFile(input: FileImportInput): Promise<FileImportStats> {
-    return this.prisma.$transaction((tx) =>
-      importFileWithClient(tx, input, this.chunker, this.evidencePipeline),
+    return this.prisma.$transaction(
+      (tx) => importFileWithClient(tx, input, this.chunker, this.evidencePipeline),
+      { timeout: readImportTransactionTimeoutMs() },
     )
   }
 }
@@ -375,4 +378,18 @@ function buildResumeCommand(template: string, session: ParsedSession): string {
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\"'\"'")}'`
+}
+
+function readImportTransactionTimeoutMs(): number {
+  const raw = process.env["SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS"]
+  if (raw === undefined || raw.trim() === "") {
+    return DEFAULT_SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS
+  }
+
+  const parsed = Number(raw)
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return DEFAULT_SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS
+  }
+
+  return parsed
 }

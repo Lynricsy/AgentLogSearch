@@ -13,7 +13,10 @@ import { ChunkerService } from "../scanner/chunker.service.js"
 import { ScannerConflictError, ScannerService } from "./scanner.service.js"
 import { ScannerFileRunner } from "./scanner-file-runner.js"
 import { fingerprintSource } from "./scanner-fingerprint.js"
-import { ScannerImporter } from "./scanner-importer.js"
+import {
+  DEFAULT_SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS,
+  ScannerImporter,
+} from "./scanner-importer.js"
 import { ScannerJobStore } from "./scanner-job-store.js"
 import { ScannerSourceStore } from "./scanner-source-store.js"
 import { createParserFake, type FakeParser, FakePrisma } from "./scanner-test-fakes.js"
@@ -141,6 +144,32 @@ describe("ScannerService", () => {
     expect(prisma.chunksFor(session.id)[0]?.chunkText).toContain("Agent: generic")
     expect(prisma.chunksFor(session.id)[0]?.chunkText).toContain("CWD: /workspace")
     expect(prisma.chunksFor(session.id)[0]?.chunkText).toContain("Thread: thread-changed")
+    expect(prisma.lastTransactionOptions()).toEqual({
+      timeout: DEFAULT_SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS,
+    })
+  })
+
+  it("allows scanner import transaction timeout to be configured for large history files", async () => {
+    // Given
+    const previousTimeout = readEnv("SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS")
+    writeEnv("SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS", "240000")
+    const filePath = await writeHistory("large-import.jsonl", "new content")
+    const prisma = createPrismaFake()
+    const source = prisma.addSource({ fileGlob: "*.jsonl", rootPath: rootOf(filePath) })
+    const service = await createScanner(
+      prisma,
+      createParserFake(makeParseResult(filePath, "thread-large-import", "message")),
+    )
+
+    try {
+      // When
+      await service.runSource(source.id)
+    } finally {
+      restoreEnv("SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS", previousTimeout)
+    }
+
+    // Then
+    expect(prisma.lastTransactionOptions()).toEqual({ timeout: 240_000 })
   })
 
   it("does not persist tool result messages or index tool output", async () => {
@@ -605,4 +634,12 @@ function writeEnv(name: string, value: string): void {
 
 function deleteEnv(name: string): void {
   delete process.env[name]
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    deleteEnv(name)
+  } else {
+    writeEnv(name, value)
+  }
 }

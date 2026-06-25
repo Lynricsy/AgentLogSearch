@@ -145,8 +145,13 @@ export class FakePrisma {
   private shouldFailMessageCreateMany = false
   private sources: FakeSource[] = []
   private traceEvents: FakeTraceEvent[] = []
+  private transactionOptions: ReadonlyArray<Record<string, unknown> | undefined> = []
 
-  public async $transaction<T>(callback: (tx: FakePrisma) => Promise<T>): Promise<T> {
+  public async $transaction<T>(
+    callback: (tx: FakePrisma) => Promise<T>,
+    options?: Record<string, unknown>,
+  ): Promise<T> {
+    this.transactionOptions = [...this.transactionOptions, options]
     const snapshot = this.snapshot()
     try {
       return await callback(this)
@@ -243,6 +248,10 @@ export class FakePrisma {
 
   public scanJobsFor(sourceId: bigint): readonly FakeScanJob[] {
     return this.scanJobs.filter((job) => job.sourceId === sourceId)
+  }
+
+  public lastTransactionOptions(): Record<string, unknown> | undefined {
+    return this.transactionOptions.at(-1)
   }
 
   private nextId(): bigint {
