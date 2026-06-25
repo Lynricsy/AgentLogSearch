@@ -3,8 +3,8 @@
 import type { ExperienceAttempt } from "@agent-log-search/shared"
 import { CheckCircle2, FilePenLine, FlaskConical, Info, XCircle } from "lucide-react"
 import type { ReactNode } from "react"
-
 import { formatReasonCode } from "../lib/evidence-labels"
+import { describeAttempt, displayTokens, validationSummary } from "../lib/experience-display"
 import { OutcomeBadge } from "./outcome-badge"
 
 type AttemptTimelineProps = {
@@ -29,9 +29,9 @@ export function AttemptTimeline({ attempts }: AttemptTimelineProps) {
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="text-sm font-semibold">尝试 {attempt.attemptIndex + 1}</h3>
+              <h3 className="text-sm font-semibold">{describeAttempt(attempt)}</h3>
               <p className="mt-1 text-xs text-[var(--app-muted)]">
-                事件 #{attempt.startSeq} - #{attempt.endSeq}
+                尝试 {attempt.attemptIndex + 1} · 事件 #{attempt.startSeq} - #{attempt.endSeq}
               </p>
             </div>
             <OutcomeBadge outcome={attempt.outcome} />
@@ -42,17 +42,16 @@ export function AttemptTimeline({ attempts }: AttemptTimelineProps) {
               emptyText="没有记录到明确的修改对象。"
               icon={<FilePenLine aria-hidden="true" className="size-4" />}
               title="修改"
-              values={[
-                attempt.actionSignature,
-                ...attempt.affectedPaths,
-                ...attempt.affectedSymbols,
-              ]}
+              values={displayTokens([...attempt.affectedPaths, ...attempt.affectedSymbols], {
+                limit: 8,
+                preferPaths: attempt.affectedPaths.length > 0,
+              })}
             />
             <AttemptSection
               emptyText="没有找到修改后的测试、构建、类型检查或 lint 结果。"
               icon={<FlaskConical aria-hidden="true" className="size-4" />}
               title="验证"
-              values={[...attempt.commandFamilies, ...attempt.errorAfter]}
+              values={validationSummary(attempt)}
             />
           </div>
 

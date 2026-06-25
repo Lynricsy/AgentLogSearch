@@ -8,6 +8,14 @@ import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
 import { type ApiClient, ApiClientError, apiClient } from "../lib/api"
 import { formatReasonCode } from "../lib/evidence-labels"
+import {
+  compactSummary,
+  displayTokens,
+  hiddenCount,
+  relevantCommands,
+  relevantExperienceErrors,
+  relevantExperiencePaths,
+} from "../lib/experience-display"
 import { AttemptTimeline } from "./attempt-timeline"
 import { EvidenceBadge } from "./evidence-badge"
 import { EvidenceEventList } from "./evidence-event-list"
@@ -86,6 +94,10 @@ function ExperienceDetailContent({ state }: { readonly state: ExperienceDetailSt
   }
 
   const experience = state.experience
+  const summary = compactSummary(experience)
+  const paths = relevantExperiencePaths(experience)
+  const errors = relevantExperienceErrors(experience)
+  const commands = relevantCommands(experience)
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -96,9 +108,10 @@ function ExperienceDetailContent({ state }: { readonly state: ExperienceDetailSt
             <EvidenceBadge level={experience.evidenceLevel} score={experience.evidenceScore} />
             <StatusBadge>{experience.kind}</StatusBadge>
           </div>
-          <p className="mt-3 text-sm leading-6 text-[var(--app-ink)]">{experience.taskText}</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">
-            {experience.templateSummary}
+          <h2 className="mt-4 text-sm font-semibold text-[var(--app-ink)]">经验结论</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--app-ink)]">{summary}</p>
+          <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">
+            原始任务：{experience.taskText}
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {experience.evidenceReasonCodes.map((code) => (
@@ -129,21 +142,31 @@ function ExperienceDetailContent({ state }: { readonly state: ExperienceDetailSt
           <TokenLine
             icon={<FileText className="size-4" />}
             label="文件"
-            tokens={experience.pathTokens}
+            hiddenCount={hiddenCount(experience.pathTokens, paths)}
+            tokens={paths}
           />
           <TokenLine
             icon={<Hash className="size-4" />}
             label="符号"
-            tokens={experience.symbolTokens}
+            hiddenCount={hiddenCount(
+              experience.symbolTokens,
+              displayTokens(experience.symbolTokens),
+            )}
+            tokens={displayTokens(experience.symbolTokens)}
           />
           <TokenLine
             label="错误"
-            tokens={[...new Set([...experience.errorCodes, ...experience.errorSignatures])]}
+            hiddenCount={hiddenCount(
+              [...experience.errorCodes, ...experience.errorSignatures],
+              errors,
+            )}
+            tokens={errors}
           />
           <TokenLine
             icon={<Terminal className="size-4" />}
             label="命令"
-            tokens={experience.commandFamilies}
+            hiddenCount={hiddenCount(experience.commandFamilies, commands)}
+            tokens={commands}
           />
         </MetaPanel>
 
@@ -186,10 +209,12 @@ function MetaPanel({ children, title }: { readonly children: ReactNode; readonly
 }
 
 function TokenLine({
+  hiddenCount: hiddenCountValue = 0,
   icon,
   label,
   tokens,
 }: {
+  readonly hiddenCount?: number
   readonly icon?: ReactNode
   readonly label: string
   readonly tokens: readonly string[]
@@ -212,6 +237,11 @@ function TokenLine({
               {token}
             </code>
           ))}
+          {hiddenCountValue > 0 ? (
+            <span className="rounded bg-[var(--app-panel-muted)] px-1.5 py-0.5 text-xs text-[var(--app-muted)]">
+              +{hiddenCountValue}
+            </span>
+          ) : null}
         </div>
       )}
     </div>

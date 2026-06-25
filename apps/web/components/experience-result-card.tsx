@@ -4,6 +4,14 @@ import type { ExperienceCompatibility, ExperienceSummary } from "@agent-log-sear
 import { ExternalLink, FileSearch, GitCompare, History, Terminal } from "lucide-react"
 import Link from "next/link"
 
+import {
+  compactSummary,
+  displayTokens,
+  hiddenCount,
+  relevantCommands,
+  relevantExperienceErrors,
+  relevantExperiencePaths,
+} from "../lib/experience-display"
 import { EvidenceBadge, formatPercent } from "./evidence-badge"
 import { OutcomeBadge } from "./outcome-badge"
 import { ScoreBreakdown } from "./score-breakdown"
@@ -14,7 +22,10 @@ type ExperienceResultCardProps = {
 }
 
 export function ExperienceResultCard({ experience }: ExperienceResultCardProps) {
-  const lastValidationCommand = lastCommand(experience)
+  const paths = relevantExperiencePaths(experience)
+  const errors = relevantExperienceErrors(experience)
+  const commands = relevantCommands(experience)
+  const summary = compactSummary(experience)
 
   return (
     <article className="rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-sm">
@@ -28,9 +39,7 @@ export function ExperienceResultCard({ experience }: ExperienceResultCardProps) 
           <h3 className="mt-3 break-words text-base font-semibold text-[var(--app-ink)]">
             {experience.title}
           </h3>
-          <p className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--app-muted)]">
-            {experience.taskText}
-          </p>
+          <p className="mt-1 line-clamp-3 text-sm leading-6 text-[var(--app-muted)]">{summary}</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Link
@@ -56,24 +65,58 @@ export function ExperienceResultCard({ experience }: ExperienceResultCardProps) 
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="space-y-3">
-          <TokenBlock label="匹配错误" tokens={experience.matchedErrors} />
-          <TokenBlock label="匹配文件" tokens={experience.matchedPaths} />
-          <TokenBlock label="相关命令" tokens={experience.commandFamilies} />
+          <TokenBlock
+            hiddenCount={hiddenCount(
+              [
+                ...experience.matchedErrors,
+                ...experience.errorCodes,
+                ...experience.errorSignatures,
+              ],
+              errors,
+            )}
+            label="错误与诊断"
+            tokens={errors}
+          />
+          <TokenBlock
+            hiddenCount={hiddenCount(
+              [
+                ...experience.matchedPaths,
+                ...experience.attempts.flatMap((attempt) => attempt.affectedPaths),
+                ...experience.pathTokens,
+              ],
+              paths,
+            )}
+            label="相关文件"
+            tokens={paths}
+          />
+          <TokenBlock
+            hiddenCount={hiddenCount(
+              [
+                ...experience.attempts.flatMap((attempt) => attempt.commandFamilies),
+                ...experience.commandFamilies,
+              ],
+              commands,
+            )}
+            label="验证命令"
+            tokens={commands}
+          />
           <div className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-muted)]/35 px-3 py-2 text-sm">
             <Terminal aria-hidden="true" className="size-4 shrink-0 text-[var(--app-muted)]" />
-            <span className="shrink-0 font-medium text-[var(--app-muted)]">最后验证命令</span>
+            <span className="shrink-0 font-medium text-[var(--app-muted)]">验证结果</span>
             <code className="min-w-0 break-words text-xs text-[var(--app-ink)]">
-              {lastValidationCommand ?? "未记录"}
+              {validationText(experience)}
             </code>
           </div>
         </div>
-        <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-muted)]/35 p-3">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">
+        <details className="rounded-lg border border-[var(--app-border)] bg-[var(--app-panel-muted)]/35 p-3">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">
             <History aria-hidden="true" className="size-4" />
-            评分
+            匹配依据 · {formatPercent(experience.scoreBreakdown.finalScore)}
+          </summary>
+          <div className="mt-3">
+            <ScoreBreakdown score={experience.scoreBreakdown} />
           </div>
-          <ScoreBreakdown score={experience.scoreBreakdown} />
-        </div>
+        </details>
       </div>
     </article>
   )
@@ -122,20 +165,23 @@ function CompatibilityPanel({
 }
 
 function TokenBlock({
+  hiddenCount: hiddenCountValue = 0,
   label,
   tokens,
 }: {
+  readonly hiddenCount?: number
   readonly label: string
   readonly tokens: readonly string[]
 }) {
+  const visibleTokens = displayTokens(tokens, { limit: 8 })
   return (
     <div className="min-w-0">
       <div className="mb-1 text-xs font-medium text-[var(--app-muted)]">{label}</div>
-      {tokens.length === 0 ? (
+      {visibleTokens.length === 0 ? (
         <span className="text-sm text-[var(--app-muted)]">未命中</span>
       ) : (
         <div className="flex flex-wrap gap-1.5">
-          {tokens.slice(0, 8).map((token) => (
+          {visibleTokens.map((token) => (
             <code
               className="max-w-full break-words rounded bg-[var(--app-accent-soft)] px-1.5 py-0.5 text-xs text-[var(--app-ink)]"
               key={token}
@@ -143,19 +189,28 @@ function TokenBlock({
               {token}
             </code>
           ))}
+          {hiddenCountValue > 0 ? (
+            <span className="rounded bg-[var(--app-panel-muted)] px-1.5 py-0.5 text-xs text-[var(--app-muted)]">
+              +{hiddenCountValue}
+            </span>
+          ) : null}
         </div>
       )}
     </div>
   )
 }
 
-function lastCommand(experience: ExperienceSummary): string | null {
-  return (
-    [...experience.attempts]
-      .reverse()
-      .flatMap((attempt) => attempt.commandFamilies)
-      .find((command) => command.trim().length > 0) ?? null
-  )
+function validationText(experience: ExperienceSummary): string {
+  if (experience.successfulAttemptCount > 0) {
+    return `${experience.successfulAttemptCount} 次通过`
+  }
+  if (experience.failedAttemptCount > 0) {
+    return `${experience.failedAttemptCount} 次失败`
+  }
+  if (experience.unverifiedAttemptCount > 0) {
+    return `${experience.unverifiedAttemptCount} 次未验证`
+  }
+  return "未记录"
 }
 
 function joinOrFallback(values: readonly string[]): string {
