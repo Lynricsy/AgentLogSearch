@@ -16,6 +16,10 @@ import { Injectable, NotFoundException, ServiceUnavailableException } from "@nes
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { PrismaService } from "../database/prisma.service.js"
 import { readExperienceConfig } from "../experiences/experience.config.js"
+import {
+  EXPERIENCE_BUILDER_VERSION,
+  EXPERIENCE_SEARCH_DOCUMENT_VERSION,
+} from "../pipeline-versions.js"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { CompatibilityService } from "../repositories/compatibility.service.js"
 import type {
@@ -63,6 +67,7 @@ export class ExperienceSearchService {
     const ranked = rankExperiences(candidates.map(toRankable), features, rankLimit(input))
     const records = await this.readExperiencesByIds(ranked.map((entry) => BigInt(entry.id)))
     const rankById = new Map(ranked.map((entry) => [entry.id, entry]))
+    const uniqueSummary = uniqueExperienceSummaryFilter()
     const summaries = (
       await Promise.all(
         records.map((record) =>
@@ -76,6 +81,7 @@ export class ExperienceSearchService {
       )
     )
       .sort((a, b) => b.scoreBreakdown.finalScore - a.scoreBreakdown.finalScore)
+      .filter(uniqueSummary)
       .slice(0, input.topK)
     return groupSummaries(summaries, input.mode)
   }
@@ -157,10 +163,12 @@ export class ExperienceSearchService {
       }),
       this.prisma.agentExperience.findMany({
         select: {
+          searchDocumentVersion: true,
           sourceRevision: true,
           embeddingStatus: true,
           session: {
             select: {
+              experienceBuilderVersion: true,
               experienceBuildStatus: true,
               traceRevision: true,
             },
@@ -216,12 +224,21 @@ export class ExperienceSearchService {
       .findMany({
         where: {
           ...(mode === "all" ? {} : { outcome: modeToOutcome(mode) }),
+          searchDocumentVersion: EXPERIENCE_SEARCH_DOCUMENT_VERSION,
           session: {
             experienceBuildStatus: "READY",
+            experienceBuilderVersion: EXPERIENCE_BUILDER_VERSION,
           },
         },
-        include: { session: { select: { traceRevision: true } } },
-        take: 200,
+        include: {
+          session: {
+            select: {
+              experienceBuilderVersion: true,
+              traceRevision: true,
+            },
+          },
+        },
+        take: 2_000,
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       })
       .then((records) =>
@@ -398,9 +415,25 @@ function isDependencyLockfileKind(value: unknown): value is DependencyLockfileKi
 
 function rankLimit(input: ExperienceSearchRequest): number {
   if (input.repositoryPath === undefined) {
-    return input.topK
+    return Math.min(100, Math.max(input.topK, input.topK * 5))
   }
   return Math.min(50, Math.max(input.topK, input.topK * 3))
+}
+
+function uniqueExperienceSummaryFilter(): (summary: ExperienceSummary) => boolean {
+  const seenKeys = new Set<string>()
+  return (summary) => {
+    const key = `${normalizeSummaryKey(summary.title)}:${normalizeSummaryKey(summary.taskText)}`
+    if (seenKeys.has(key)) {
+      return false
+    }
+    seenKeys.add(key)
+    return true
+  }
+}
+
+function normalizeSummaryKey(value: string): string {
+  return value.toLocaleLowerCase("en-US").replace(/\s+/g, " ").trim().slice(0, 160)
 }
 
 function countSessionStatuses(
@@ -424,8 +457,10 @@ function countSessionStatuses(
 function countExperienceStatuses(
   experiences: readonly {
     readonly sourceRevision: number
+    readonly searchDocumentVersion: string
     readonly embeddingStatus: string
     readonly session: {
+      readonly experienceBuilderVersion: string | null
       readonly experienceBuildStatus: ExperienceBuildStatus
       readonly traceRevision: number
     }
@@ -445,7 +480,7 @@ function countExperienceStatuses(
     if (isExperienceEmbeddingStatus(experience.embeddingStatus)) {
       embeddingStatuses[experience.embeddingStatus] += 1
     }
-    if (experience.sourceRevision === experience.session.traceRevision) {
+    if (isCurrentExperienceDocument(experience)) {
       currentRevisionExperiences += 1
       if (experience.session.experienceBuildStatus === "READY") {
         readyExperiences += 1
@@ -463,6 +498,21 @@ function countExperienceStatuses(
   }
 }
 
+function isCurrentExperienceDocument(experience: {
+  readonly sourceRevision: number
+  readonly searchDocumentVersion: string
+  readonly session: {
+    readonly experienceBuilderVersion: string | null
+    readonly traceRevision: number
+  }
+}): boolean {
+  return (
+    experience.sourceRevision === experience.session.traceRevision &&
+    experience.session.experienceBuilderVersion === EXPERIENCE_BUILDER_VERSION &&
+    experience.searchDocumentVersion === EXPERIENCE_SEARCH_DOCUMENT_VERSION
+  )
+}
+
 function isExperienceEmbeddingStatus(value: string): value is ExperienceEmbeddingStatus {
   return value === "pending" || value === "processing" || value === "ready" || value === "failed"
 }
@@ -470,6 +520,9 @@ function isExperienceEmbeddingStatus(value: string): value is ExperienceEmbeddin
 function toRankable(record: {
   readonly id: bigint
   readonly outcome: RankableExperience["outcome"]
+  readonly title: string
+  readonly taskText: string
+  readonly templateSummary: string
   readonly evidenceScore: number
   readonly searchText: string
   readonly pathTokens: readonly string[]
@@ -477,17 +530,21 @@ function toRankable(record: {
   readonly errorCodes: readonly string[]
   readonly errorSignatures: readonly string[]
   readonly commandFamilies: readonly string[]
+  readonly updatedAt: Date
 }): RankableExperience {
   return {
     id: record.id.toString(),
     outcome: record.outcome,
     evidenceScore: record.evidenceScore,
-    searchText: record.searchText,
+    searchText: [record.title, record.taskText, record.templateSummary, record.searchText].join(
+      "\n",
+    ),
     pathTokens: [...record.pathTokens],
     symbolTokens: [...record.symbolTokens],
     errorCodes: record.errorCodes,
     errorSignatures: record.errorSignatures,
     commandFamilies: record.commandFamilies,
+    updatedAt: record.updatedAt,
   }
 }
 

@@ -54,6 +54,81 @@ describe("ExperienceSearchService", () => {
     expect(compatibility.check).not.toHaveBeenCalled()
   })
 
+  it("finds verified scanner experience from fuzzy Prisma text without advanced fields", async () => {
+    const prisma = createPrismaFake({
+      experiences: [
+        experience({
+          id: 1n,
+          outcome: "PARTIAL",
+          title: "TS2724 · session-detail-workspace.tsx",
+          taskText: "优化会话详情界面",
+          templateSummary: "该任务的部分验证通过，但仍存在后续验证失败。",
+          searchText: "Invalid unknown invocation data source",
+          pathTokens: ["apps/web/components/session-detail-workspace.tsx"],
+        }),
+        experience({
+          id: 2n,
+          outcome: "SUCCEEDED",
+          title: "TS4111 · scanner-file-runner.ts:90:37",
+          taskText: "截图显示 Invalid historyFile.findUnique invocation",
+          templateSummary:
+            "最后一次涉及 apps/api/src/scanner/scanner-file-runner.ts 和 prisma/schema.prisma，随后测试验证通过。",
+          searchText: "Prisma schema scanner-file-runner historyFile findUnique scan failure",
+          pathTokens: ["apps/api/src/scanner/scanner-file-runner.ts", "prisma/schema.prisma"],
+          commandFamilies: ["test", "typecheck", "lint"],
+        }),
+      ],
+    })
+    const service = new ExperienceSearchService(prisma, createCompatibilityFake())
+
+    const result = await service.search({
+      query: "Invalid historyFile.findUnique invocation scanner unknown data source Prisma",
+      files: [],
+      symbols: [],
+      mode: "all",
+      topK: 10,
+    })
+
+    expect(result.successful[0]).toMatchObject({
+      id: "2",
+      matchedPaths: expect.arrayContaining(["prisma/schema.prisma"]),
+    })
+    expect(result.successful[0]?.scoreBreakdown.pathMatch).toBeGreaterThan(0.35)
+  })
+
+  it("ignores experiences built with stale search document versions", async () => {
+    const prisma = createPrismaFake({
+      experiences: [
+        experience({
+          id: 1n,
+          searchDocumentVersion: "experience-search-v1",
+          searchText: "TS2339 apps/api/src/foo.ts test",
+          pathTokens: ["apps/api/src/foo.ts"],
+          errorCodes: ["TS2339"],
+          commandFamilies: ["test"],
+        }),
+        experience({
+          id: 2n,
+          searchText: "TS2339 apps/api/src/foo.ts test",
+          pathTokens: ["apps/api/src/foo.ts"],
+          errorCodes: ["TS2339"],
+          commandFamilies: ["test"],
+        }),
+      ],
+    })
+    const service = new ExperienceSearchService(prisma, createCompatibilityFake())
+
+    const result = await service.search({
+      query: "TS2339 foo.ts test",
+      files: ["apps/api/src/foo.ts"],
+      symbols: [],
+      mode: "all",
+      topK: 10,
+    })
+
+    expect(result.successful.map((entry) => entry.id)).toEqual(["2"])
+  })
+
   it("attaches repository compatibility and applies a conservative score factor", async () => {
     const prisma = createPrismaFake({
       experiences: [
@@ -206,6 +281,23 @@ describe("ExperienceSearchService", () => {
     })
   })
 
+  it("reports stale search document versions as stale experiences", async () => {
+    writeEnv(env, "EXPERIENCE_SEARCH_ENABLED", "false")
+    const prisma = createPrismaFake({
+      experiences: [
+        experience({ id: 7n, searchDocumentVersion: "experience-search-v1" }),
+        experience({ id: 8n }),
+      ],
+    })
+    const service = new ExperienceSearchService(prisma, createCompatibilityFake())
+
+    const result = await service.status()
+
+    expect(result.currentRevisionExperiences).toBe(1)
+    expect(result.readyExperiences).toBe(1)
+    expect(result.staleRevisionExperiences).toBe(1)
+  })
+
   it("checks planned operations against failed attempt history", async () => {
     const prisma = createPrismaFake({
       experiences: [
@@ -275,12 +367,45 @@ function createPrismaFake(input: {
 }) {
   const agentExperience = {
     findMany: jest.fn(
-      async (args: { readonly where?: { readonly id?: { readonly in: bigint[] } } }) => {
+      async (args: {
+        readonly where?: {
+          readonly id?: { readonly in: bigint[] }
+          readonly outcome?: FakeExperience["outcome"]
+          readonly searchDocumentVersion?: string
+          readonly session?: {
+            readonly experienceBuildStatus?: FakeExperience["session"]["experienceBuildStatus"]
+            readonly experienceBuilderVersion?: string
+          }
+        }
+      }) => {
         if (args.where?.id?.in !== undefined) {
           const ids = new Set(args.where.id.in.map((id) => id.toString()))
           return input.experiences.filter((entry) => ids.has(entry.id.toString()))
         }
-        return input.experiences
+        return input.experiences.filter((entry) => {
+          if (args.where?.outcome !== undefined && entry.outcome !== args.where.outcome) {
+            return false
+          }
+          if (
+            args.where?.searchDocumentVersion !== undefined &&
+            entry.searchDocumentVersion !== args.where.searchDocumentVersion
+          ) {
+            return false
+          }
+          if (
+            args.where?.session?.experienceBuildStatus !== undefined &&
+            entry.session.experienceBuildStatus !== args.where.session.experienceBuildStatus
+          ) {
+            return false
+          }
+          if (
+            args.where?.session?.experienceBuilderVersion !== undefined &&
+            entry.session.experienceBuilderVersion !== args.where.session.experienceBuilderVersion
+          ) {
+            return false
+          }
+          return true
+        })
       },
     ),
     findUnique: jest.fn(),
@@ -369,9 +494,9 @@ function experience(input: Partial<FakeExperience> & { readonly id: bigint }): F
     startSeq: 0,
     endSeq: 2,
     kind: "change",
-    title: "TS2339 · foo.ts",
-    taskText: "修复错误",
-    templateSummary: "该任务包含 1 次修改尝试；随后测试验证通过。",
+    title: input.title ?? "TS2339 · foo.ts",
+    taskText: input.taskText ?? "修复错误",
+    templateSummary: input.templateSummary ?? "该任务包含 1 次修改尝试；随后测试验证通过。",
     outcome: input.outcome ?? "SUCCEEDED",
     evidenceScore: input.evidenceScore ?? 0.9,
     evidenceLevel: "A",
@@ -389,16 +514,17 @@ function experience(input: Partial<FakeExperience> & { readonly id: bigint }): F
     successfulAttemptCount: 1,
     unverifiedAttemptCount: 0,
     searchText: input.searchText ?? "",
-    searchDocumentVersion: "experience-search-v1",
+    searchDocumentVersion: input.searchDocumentVersion ?? "experience-search-v2",
     embeddingStatus: input.embeddingStatus ?? "pending",
     embeddingModel: null,
     embeddingError: null,
     embeddingReadyAt: null,
-    builderVersion: "experience-v1",
+    builderVersion: input.builderVersion ?? "experience-v1",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     session: {
       experienceBuildStatus: input.sessionExperienceBuildStatus ?? "READY",
+      experienceBuilderVersion: input.sessionExperienceBuilderVersion ?? "experience-v1",
       traceRevision: input.sessionTraceRevision ?? sourceRevision,
     },
     attempts: input.attempts ?? [],
@@ -494,9 +620,11 @@ type FakeExperience = {
   readonly updatedAt: Date
   readonly session: {
     readonly experienceBuildStatus: "PENDING" | "PROCESSING" | "READY" | "FAILED"
+    readonly experienceBuilderVersion: string | null
     readonly traceRevision: number
   }
   readonly sessionExperienceBuildStatus?: "PENDING" | "PROCESSING" | "READY" | "FAILED"
+  readonly sessionExperienceBuilderVersion?: string | null
   readonly sessionTraceRevision?: number
   readonly attempts: FakeAttempt[]
 }

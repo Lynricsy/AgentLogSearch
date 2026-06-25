@@ -614,12 +614,19 @@ only and must not be exposed without adding authentication and an explicit deplo
 ## Experience Search API
 
 Evidence-aware experience APIs are guarded by `EXPERIENCE_SEARCH_ENABLED=true`. They read only
-`READY` sessions whose `agent_experience.sourceRevision` matches the session `traceRevision`, so a
-new scan can mark a session pending without deleting the last usable experience set first.
+`READY` sessions whose `agent_experience.sourceRevision`, builder version, and search document
+version are current. A new scan can mark a session pending without deleting the last usable
+experience set first, while a search document version bump makes older experience documents stale
+until the background worker rebuilds them.
 
 `POST /api/experiences/search` performs a conservative lexical and structured search over built
 experiences. Dense experience embeddings are still a later milestone, so this endpoint currently
-ranks by code/error/path/symbol/command overlap and evidence score.
+ranks by code/error/path/symbol/command overlap and evidence score. The plain `query` field is also
+expanded for fuzzy engineering searches: camelCase/dotted calls such as `historyFile.findUnique`,
+module words such as `scanner`, and aliases such as `Prisma`/`schema` can match related symbols and
+paths even when callers do not fill `files` or `symbols`. Built experience documents include
+bounded diagnostic excerpts from the original trace, so errors discovered during investigation can
+be found later from approximate natural-language or code-fragment queries.
 
 Request body:
 

@@ -119,13 +119,17 @@ function scoreFailedAttempt(
   const pathMatch = pathScore(record.affectedPaths, features.pathTokens)
   const symbolMatch = overlapScore(record.affectedSymbols, features.symbolTokens)
   const commandMatch = overlapScore(record.commandFamilies, features.commandFamilies)
-  const score = weightedAverage([
-    { available: features.lexicalText.length > 0, score: taskSimilarity, weight: 0.35 },
-    { available: features.actionTokens.length > 0, score: actionTokenMatch, weight: 0.3 },
-    { available: features.pathTokens.length > 0, score: pathMatch, weight: 0.2 },
-    { available: features.symbolTokens.length > 0, score: symbolMatch, weight: 0.1 },
-    { available: features.commandFamilies.length > 0, score: commandMatch, weight: 0.05 },
-  ])
+  const structuredMatch = Math.max(actionTokenMatch, pathMatch, symbolMatch, commandMatch)
+  const score = Math.max(
+    weightedAverage([
+      { available: features.lexicalText.length > 0, score: taskSimilarity, weight: 0.2 },
+      { available: features.actionTokens.length > 0, score: actionTokenMatch, weight: 0.3 },
+      { available: features.pathTokens.length > 0, score: pathMatch, weight: 0.25 },
+      { available: features.symbolTokens.length > 0, score: symbolMatch, weight: 0.15 },
+      { available: features.commandFamilies.length > 0, score: commandMatch, weight: 0.1 },
+    ]),
+    structuredMatch * 0.75,
+  )
   if (score < 0.2) {
     return null
   }
@@ -228,22 +232,33 @@ function pathScore(candidate: readonly string[], query: readonly string[]): numb
   if (query.length === 0) {
     return 0
   }
-  let best = 0
-  for (const candidatePath of candidate) {
-    for (const queryPath of query) {
+  const scores = [...new Set(query)].map((queryPath) => {
+    let best = 0
+    for (const candidatePath of candidate) {
       best = Math.max(best, singlePathScore(candidatePath, queryPath))
     }
-  }
-  return best
+    return best
+  })
+  return scores.reduce((sum, score) => sum + score, 0) / scores.length
 }
 
 function singlePathScore(candidatePath: string, queryPath: string): number {
   if (candidatePath === queryPath) return 1
   const candidateParts = candidatePath.split("/")
   const queryParts = queryPath.split("/")
+  if (endsWithParts(candidateParts, queryParts) || endsWithParts(queryParts, candidateParts))
+    return 0.95
   if (candidateParts.slice(-2).join("/") === queryParts.slice(-2).join("/")) return 0.85
   if (candidateParts.at(-1) === queryParts.at(-1)) return 0.65
+  if (queryParts.length === 1 && candidateParts.includes(queryPath)) return 0.75
   return jaccard(candidateParts, queryParts) * 0.5
+}
+
+function endsWithParts(parts: readonly string[], suffix: readonly string[]): boolean {
+  if (suffix.length === 0 || suffix.length > parts.length) {
+    return false
+  }
+  return suffix.every((part, index) => parts[parts.length - suffix.length + index] === part)
 }
 
 function weightedAverage(
@@ -284,8 +299,13 @@ function tokenSet(value: string): ReadonlySet<string> {
     value
       .toLocaleLowerCase("en-US")
       .split(/[^a-z0-9_.:/-]+/i)
+      .flatMap(expandToken)
       .filter((token) => token.length > 1),
   )
+}
+
+function expandToken(token: string): readonly string[] {
+  return [token, ...token.split(/[._:/-]+/)].filter((value) => value.length > 1)
 }
 
 function jaccard(left: readonly string[], right: readonly string[]): number {

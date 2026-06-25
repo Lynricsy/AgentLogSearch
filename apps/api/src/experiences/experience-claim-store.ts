@@ -2,6 +2,10 @@ import { Injectable } from "@nestjs/common"
 import type { QueryResultRow } from "pg"
 // biome-ignore lint/style/useImportType: Nest needs runtime constructor metadata for DI.
 import { PgService } from "../database/pg.service.js"
+import {
+  EXPERIENCE_BUILDER_VERSION,
+  EXPERIENCE_SEARCH_DOCUMENT_VERSION,
+} from "../pipeline-versions.js"
 
 export type ClaimedExperienceSession = {
   readonly id: bigint
@@ -28,7 +32,22 @@ export class ExperienceClaimStore {
           SELECT id
           FROM agent_session
           WHERE experience_build_status IN ('PENDING', 'FAILED')
-          ORDER BY experience_requested_at NULLS FIRST, id
+             OR (
+               experience_build_status = 'READY'
+               AND (
+                 experience_builder_version IS DISTINCT FROM $2
+                 OR EXISTS (
+                   SELECT 1
+                   FROM agent_experience e
+                   WHERE e.session_id = agent_session.id
+                     AND e.search_document_version IS DISTINCT FROM $3
+                 )
+               )
+             )
+          ORDER BY
+            CASE WHEN experience_build_status IN ('PENDING', 'FAILED') THEN 0 ELSE 1 END,
+            experience_requested_at NULLS FIRST,
+            id
           FOR UPDATE SKIP LOCKED
           LIMIT $1
         )
@@ -40,7 +59,7 @@ export class ExperienceClaimStore {
         WHERE s.id = c.id
         RETURNING s.id, s.trace_revision
       `,
-      [batchSize],
+      [batchSize, EXPERIENCE_BUILDER_VERSION, EXPERIENCE_SEARCH_DOCUMENT_VERSION],
     )
     return result.rows.map((row) => ({
       id: readBigInt(row.id),
@@ -68,7 +87,20 @@ export class ExperienceClaimStore {
         SELECT COUNT(*) AS count
         FROM agent_session
         WHERE experience_build_status IN ('PENDING', 'FAILED')
+           OR (
+             experience_build_status = 'READY'
+             AND (
+               experience_builder_version IS DISTINCT FROM $1
+               OR EXISTS (
+                 SELECT 1
+                 FROM agent_experience e
+                 WHERE e.session_id = agent_session.id
+                   AND e.search_document_version IS DISTINCT FROM $2
+               )
+             )
+           )
       `,
+      [EXPERIENCE_BUILDER_VERSION, EXPERIENCE_SEARCH_DOCUMENT_VERSION],
     )
     return readCount(result.rows[0])
   }

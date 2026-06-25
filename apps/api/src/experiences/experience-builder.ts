@@ -70,6 +70,7 @@ function buildExperienceFromEpisode(
       (event) =>
         event.facts.errors?.map((error) => error.normalizedMessage ?? "").filter(Boolean) ?? [],
     ),
+    excerpts: episode.events.flatMap((event) => event.redactedExcerpt ?? []),
     paths: pathTokens,
     actionTokens: attempts.flatMap((attempt) => attempt.actionTokens),
     commandFamilies,
@@ -236,6 +237,7 @@ function buildSearchText(input: {
   readonly outcome: ExperienceOutcome
   readonly errorCodes: readonly string[]
   readonly errors: readonly string[]
+  readonly excerpts: readonly string[]
   readonly paths: readonly string[]
   readonly actionTokens: readonly string[]
   readonly commandFamilies: readonly string[]
@@ -251,9 +253,12 @@ function buildSearchText(input: {
     "outcome:",
     input.outcome.toLocaleLowerCase("en-US"),
     "",
+    "diagnostic excerpts:",
+    ...prioritizedExcerpts(input.excerpts),
+    "",
     "errors:",
     ...input.errorCodes,
-    ...input.errors.slice(0, 10),
+    ...input.errors.slice(0, 10).map((error) => trimSearchLine(error)),
     "",
     "files:",
     ...input.paths,
@@ -274,6 +279,28 @@ function buildSearchText(input: {
     `versions: ${EXPERIENCE_BUILDER_VERSION} ${EXPERIENCE_SEARCH_DOCUMENT_VERSION}`,
   ].join("\n")
   return input.redactor.redact(text.length > 8_000 ? text.slice(0, 8_000) : text).text
+}
+
+function prioritizedExcerpts(excerpts: readonly string[]): readonly string[] {
+  const cleaned = unique(
+    excerpts
+      .map((excerpt) => excerpt.replace(/\s+/g, " ").trim())
+      .filter((excerpt) => excerpt.length > 0),
+  )
+  const withSignals = cleaned.filter(hasSearchSignal)
+  const withoutSignals = cleaned.filter((excerpt) => !hasSearchSignal(excerpt))
+  return [...withSignals, ...withoutSignals].slice(0, 20).map((excerpt) => trimSearchLine(excerpt))
+}
+
+function hasSearchSignal(value: string): boolean {
+  return (
+    /\b(?:error|exception|invalid|failed|fail|prisma|findunique|ts\d{4})\b/i.test(value) ||
+    /[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+/.test(value)
+  )
+}
+
+function trimSearchLine(value: string): string {
+  return value.length <= 500 ? value : value.slice(0, 500)
 }
 
 function evidenceLevel(score: number): "A" | "B" | "C" | "D" {

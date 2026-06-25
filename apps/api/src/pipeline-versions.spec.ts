@@ -16,7 +16,7 @@ describe("pipeline version constants", () => {
       TRACE_PARSER_VERSION: "trace-v1",
       EVIDENCE_EXTRACTOR_VERSION: "evidence-v1",
       EXPERIENCE_BUILDER_VERSION: "experience-v1",
-      EXPERIENCE_SEARCH_DOCUMENT_VERSION: "experience-search-v1",
+      EXPERIENCE_SEARCH_DOCUMENT_VERSION: "experience-search-v2",
     })
   })
 })

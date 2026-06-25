@@ -101,6 +101,25 @@ describe("buildExperiences", () => {
       failedAttemptCount: 0,
     })
   })
+
+  it("adds diagnostic excerpts to the search document for fuzzy error search", () => {
+    const experiences = buildExperiences({
+      cwd: "/repo",
+      sourceRevision: 1,
+      events: [
+        user(0, "这是怎么了"),
+        assistant(1, "Invalid `historyFile.findUnique()` invocation in scanner-file-runner Prisma"),
+        mutation(2, "patch-1", ["apps/api/src/scanner/scanner-file-runner.ts"]),
+        validation(3, "test-1", "succeeded"),
+      ],
+    })
+
+    expect(experiences).toHaveLength(1)
+    expect(experiences[0]?.searchText).toContain("diagnostic excerpts:")
+    expect(experiences[0]?.searchText).toContain("historyFile.findUnique")
+    expect(experiences[0]?.searchText).toContain("scanner-file-runner")
+    expect(experiences[0]?.searchText).toContain("Prisma")
+  })
 })
 
 function user(seqNo: number, text: string): ExperienceTraceEvent {
