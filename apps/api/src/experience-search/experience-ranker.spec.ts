@@ -114,4 +114,47 @@ describe("experience search ranking", () => {
     expect(ranked[0]?.scoreBreakdown.pathMatch).toBeGreaterThan(0.35)
     expect(ranked[1]?.scoreBreakdown.pathMatch).toBeLessThan(0.1)
   })
+
+  it("recalls useful experience from fuzzy Chinese problem descriptions", () => {
+    const features = extractExperienceQueryFeatures({
+      query: "经验详情页面 API 响应不符合预期契约 是怎么回事",
+    })
+    const ranked = rankExperiences(
+      [
+        {
+          id: "1",
+          outcome: "SUCCEEDED",
+          evidenceScore: 1,
+          searchText: "修复经验详情 API 响应不符合预期契约 rawPointer schema evidence",
+          title: "经验详情 rawPointer 契约不一致修复",
+          taskText: "经验详情页显示 API 响应不符合预期契约",
+          templateSummary: "将 rawPointer 转换为共享 schema 期望的 filePath/line/jsonPointer。",
+          pathTokens: ["apps/api/src/experience-search/experience-search.service.ts"],
+          symbolTokens: ["toEvidenceEventSummary", "rawPointer"],
+          errorCodes: [],
+          errorSignatures: [],
+          commandFamilies: ["test", "typecheck"],
+        },
+        {
+          id: "2",
+          outcome: "UNKNOWN",
+          evidenceScore: 1,
+          searchText: "会话详情界面优化 markdown 卡片布局",
+          title: "会话详情界面优化",
+          taskText: "优化会话详情页面",
+          templateSummary: "没有记录到修改后的验证结果。",
+          pathTokens: ["apps/web/components/session-detail-workspace.tsx"],
+          symbolTokens: [],
+          errorCodes: [],
+          errorSignatures: [],
+          commandFamilies: [],
+        },
+      ],
+      features,
+      10,
+    )
+
+    expect(ranked[0]?.id).toBe("1")
+    expect(ranked[0]?.scoreBreakdown.lexical).toBeGreaterThan(0.4)
+  })
 })

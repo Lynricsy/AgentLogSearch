@@ -20,7 +20,10 @@ const SCORE_LABELS: Readonly<Record<string, string>> = {
   evidenceFactor: "证据",
   finalScore: "总分",
   lexical: "文本",
+  outcomeFactor: "可复用",
   pathMatch: "文件",
+  phraseMatch: "短语",
+  specificityFactor: "聚焦",
   symbolMatch: "符号",
   taskSimilarity: "任务",
 }

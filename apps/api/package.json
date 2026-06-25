@@ -12,6 +12,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
+    "evaluate:experience-search": "tsx scripts/evaluate-experience-search.ts",
     "inspect:fixtures": "tsx scripts/inspect-agent-fixtures.ts ../../sample-data --output ../../docs/evidence/fixture-shape-inventory.json && cd ../.. && biome format --write docs/evidence/fixture-shape-inventory.json",
     "test": "jest --config jest.config.cjs --passWithNoTests",
     "test:e2e": "jest --config test/jest-e2e.config.cjs",

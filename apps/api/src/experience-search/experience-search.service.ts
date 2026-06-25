@@ -536,9 +536,10 @@ function toRankable(record: {
     id: record.id.toString(),
     outcome: record.outcome,
     evidenceScore: record.evidenceScore,
-    searchText: [record.title, record.taskText, record.templateSummary, record.searchText].join(
-      "\n",
-    ),
+    searchText: record.searchText,
+    templateSummary: record.templateSummary,
+    taskText: record.taskText,
+    title: record.title,
     pathTokens: [...record.pathTokens],
     symbolTokens: [...record.symbolTokens],
     errorCodes: record.errorCodes,
