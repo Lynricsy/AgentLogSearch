@@ -294,6 +294,84 @@ describe("ScannerService", () => {
     })
   })
 
+  it("strips nul characters before writing messages, chunks, and trace events", async () => {
+    // Given
+    const filePath = await writeHistory("nul-trace.jsonl", "new content")
+    const prisma = createPrismaFake()
+    const source = prisma.addSource({ fileGlob: "*.jsonl", rootPath: rootOf(filePath) })
+    const service = await createScanner(
+      prisma,
+      createParserFake({
+        sessions: [
+          {
+            parserType: "generic-jsonl",
+            sourcePath: filePath,
+            threadId: "thread-nul",
+            cwd: "/workspace\u0000/repo",
+            title: "NUL trace",
+            model: "model\u0000name",
+            startedAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:01:00.000Z",
+            messages: [
+              {
+                role: "user",
+                content: "hello\u0000world",
+                model: null,
+                sequence: 0,
+                createdAt: null,
+              },
+            ],
+            traceEvents: [
+              {
+                kind: "tool_call",
+                sourceEventKey: "tool-call-nul",
+                sequence: 1,
+                subSequence: 0,
+                callId: "call\u0000id",
+                toolName: "exec\u0000command",
+                rawPointer: {
+                  sourcePath: `${filePath}\u0000`,
+                  lineNumber: 2,
+                  jsonPath: "/payload\u0000/arguments",
+                },
+                arguments: {
+                  command: "printf '\u0000'",
+                  "\u0000badKey": "bad\u0000value",
+                },
+              },
+              {
+                kind: "assistant_message",
+                sourceEventKey: "assistant-message-nul",
+                sequence: 2,
+                subSequence: 0,
+                rawPointer: { sourcePath: filePath, lineNumber: 3 },
+                text: "assistant\u0000text",
+              },
+            ],
+          },
+        ],
+        warnings: [],
+        errors: [],
+      }),
+    )
+
+    // When
+    await service.runSource(source.id)
+    const importedSession = prisma.onlySession()
+    const serialized = JSON.stringify(prisma.snapshotForAssertions(), (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value,
+    )
+
+    // Then
+    expect(prisma.messagesFor(importedSession.id)[0]?.content).toBe("helloworld")
+    expect(prisma.chunksFor(importedSession.id)[0]?.chunkText).toContain("helloworld")
+    expect(prisma.traceEventsFor(importedSession.id)[0]).toMatchObject({
+      callId: "callid",
+      toolName: "execcommand",
+    })
+    expect(serialized).not.toContain("\u0000")
+  })
+
   it("persists normalized evidence facts when evidence pipeline is enabled", async () => {
     // Given
     const previousFlag = readEnv("EVIDENCE_PIPELINE_ENABLED")

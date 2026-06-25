@@ -172,10 +172,10 @@ function toSessionCreate(source: SourceConfig, historyFileId: bigint, session: P
     sourceId: source.id,
     historyFileId,
     agentName: source.sourcePreset,
-    externalThreadId: session.threadId,
-    title: session.title,
-    cwd: session.cwd,
-    modelName: session.model,
+    externalThreadId: sanitizeText(session.threadId),
+    title: sanitizeNullableText(session.title),
+    cwd: sanitizeNullableText(session.cwd),
+    modelName: sanitizeNullableText(session.model),
     startedAt: toNullableDate(session.startedAt),
     lastMessageAt: toNullableDate(session.updatedAt),
     messageCount: session.messages.length,
@@ -187,9 +187,9 @@ function toSessionUpdate(source: SourceConfig, historyFileId: bigint, session: P
   return {
     historyFileId,
     agentName: source.sourcePreset,
-    title: session.title,
-    cwd: session.cwd,
-    modelName: session.model,
+    title: sanitizeNullableText(session.title),
+    cwd: sanitizeNullableText(session.cwd),
+    modelName: sanitizeNullableText(session.model),
     startedAt: toNullableDate(session.startedAt),
     lastMessageAt: toNullableDate(session.updatedAt),
     messageCount: session.messages.length,
@@ -202,8 +202,8 @@ function toMessageCreate(sessionId: bigint, message: ParsedMessage) {
     sessionId,
     seqNo: message.sequence,
     role: message.role,
-    content: message.content,
-    model: message.model,
+    content: sanitizeText(message.content),
+    model: sanitizeNullableText(message.model),
     createdAt: toNullableDate(message.createdAt),
   }
 }
@@ -215,10 +215,10 @@ function toChunkCreate(sourceId: bigint, sessionId: bigint, chunk: ChunkDraft) {
     chunkIndex: chunk.chunkIndex,
     startMessageSeq: chunk.startMessageSeq,
     endMessageSeq: chunk.endMessageSeq,
-    agentName: chunk.agentName,
-    externalThreadId: chunk.externalThreadId,
-    cwd: chunk.cwd,
-    chunkText: chunk.chunkText,
+    agentName: sanitizeNullableText(chunk.agentName),
+    externalThreadId: sanitizeNullableText(chunk.externalThreadId),
+    cwd: sanitizeNullableText(chunk.cwd),
+    chunkText: sanitizeText(chunk.chunkText),
     embeddingStatus: EmbeddingStatus.pending,
   }
 }
@@ -255,23 +255,23 @@ function toTraceEventCreate(
 function toNormalizedTraceEventCreate(sessionId: bigint, event: NormalizedTraceEventDraft) {
   return {
     sessionId,
-    sourceEventKey: event.sourceEventKey,
+    sourceEventKey: sanitizeText(event.sourceEventKey),
     seqNo: event.seqNo,
     subSeqNo: event.subSeqNo,
     eventKind: event.eventKind,
     operationKind: event.operationKind,
     occurredAt: event.occurredAt ?? null,
-    callId: event.callId ?? null,
-    toolName: event.toolName ?? null,
+    callId: sanitizeNullableText(event.callId ?? null),
+    toolName: sanitizeNullableText(event.toolName ?? null),
     pairingQuality: event.pairingQuality,
     facts: toJsonObject(event.facts),
-    pathTokens: [...event.pathTokens],
-    errorSignatures: [...event.errorSignatures],
-    errorCodes: [...event.errorCodes],
-    commandFamilies: [...event.commandFamilies],
+    pathTokens: event.pathTokens.map(sanitizeText),
+    errorSignatures: event.errorSignatures.map(sanitizeText),
+    errorCodes: event.errorCodes.map(sanitizeText),
+    commandFamilies: event.commandFamilies.map(sanitizeText),
     rawPointer: toJsonValue(event.rawPointer),
-    redactedExcerpt: event.redactedExcerpt ?? null,
-    rawContentSha256: event.rawContentSha256 ?? null,
+    redactedExcerpt: sanitizeNullableText(event.redactedExcerpt ?? null),
+    rawContentSha256: sanitizeNullableText(event.rawContentSha256 ?? null),
     contentHash: event.contentHash,
     extractorVersion: EVIDENCE_EXTRACTOR_VERSION,
   }
@@ -280,14 +280,14 @@ function toNormalizedTraceEventCreate(sessionId: bigint, event: NormalizedTraceE
 function toParsedTraceEventCreate(sessionId: bigint, event: ParsedTraceEvent) {
   return {
     sessionId,
-    sourceEventKey: event.sourceEventKey,
+    sourceEventKey: sanitizeText(event.sourceEventKey),
     seqNo: event.sequence,
     subSeqNo: event.subSequence,
     eventKind: toTraceEventKind(event),
     operationKind: OperationKind.NONE,
     occurredAt: event.occurredAt ?? null,
-    callId: "callId" in event ? (event.callId ?? null) : null,
-    toolName: "toolName" in event ? (event.toolName ?? null) : null,
+    callId: "callId" in event ? sanitizeNullableText(event.callId ?? null) : null,
+    toolName: "toolName" in event ? sanitizeNullableText(event.toolName ?? null) : null,
     pairingQuality: EvidenceQuality.UNKNOWN,
     facts: toTraceFacts(event),
     rawPointer: toJsonValue(event.rawPointer),
@@ -334,7 +334,7 @@ function toTraceFacts(event: ParsedTraceEvent): Prisma.InputJsonObject {
 }
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue
+  return JSON.parse(JSON.stringify(sanitizeJsonValue(value ?? null))) as Prisma.InputJsonValue
 }
 
 function toJsonObject(value: unknown): Prisma.InputJsonObject {
@@ -361,7 +361,8 @@ function toTraceExcerpt(event: ParsedTraceEvent): string | null {
 }
 
 function truncateTraceExcerpt(value: string): string {
-  return value.length <= 2_000 ? value : value.slice(0, 2_000)
+  const sanitized = sanitizeText(value)
+  return sanitized.length <= 2_000 ? sanitized : sanitized.slice(0, 2_000)
 }
 
 function sha256(value: string): string {
@@ -380,8 +381,31 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\"'\"'")}'`
 }
 
+function sanitizeNullableText(value: string | null): string | null {
+  return value === null ? null : sanitizeText(value)
+}
+
+function sanitizeText(value: string): string {
+  return value.replaceAll("\u0000", "")
+}
+
+function sanitizeJsonValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return sanitizeText(value)
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeJsonValue)
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [sanitizeText(key), sanitizeJsonValue(entry)]),
+    )
+  }
+  return value
+}
+
 function readImportTransactionTimeoutMs(): number {
-  const raw = process.env["SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS"]
+  const { SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS: raw } = process.env
   if (raw === undefined || raw.trim() === "") {
     return DEFAULT_SCANNER_IMPORT_TRANSACTION_TIMEOUT_MS
   }

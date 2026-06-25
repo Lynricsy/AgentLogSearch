@@ -254,6 +254,10 @@ export class FakePrisma {
     return this.transactionOptions.at(-1)
   }
 
+  public snapshotForAssertions(): FakeSnapshot {
+    return this.snapshot()
+  }
+
   private nextId(): bigint {
     const value = this.id
     this.id += 1n
