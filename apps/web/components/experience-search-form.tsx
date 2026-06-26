@@ -1,16 +1,8 @@
 "use client"
 
 import type { ExperienceSearchRequest } from "@agent-log-search/shared"
-import {
-  Accordion,
-  AccordionItem,
-  Button,
-  Input,
-  Select,
-  SelectItem,
-  Textarea,
-} from "@heroui/react"
-import { FolderGit2, Search } from "lucide-react"
+import { Accordion, AccordionItem, Button, Input, Textarea } from "@heroui/react"
+import { ChevronDown, FolderGit2, Search } from "lucide-react"
 
 import type {
   ExperienceSearchFormErrors,
@@ -49,9 +41,6 @@ export function ExperienceSearchForm({
   ) {
     onChange({ ...state, [key]: value })
   }
-  const selectedModeLabel =
-    modeOptions.find((option) => option.key === state.mode)?.label ?? modeOptions[0].label
-
   return (
     <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] p-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_11rem_7rem]">
@@ -70,32 +59,28 @@ export function ExperienceSearchForm({
           value={state.query}
           variant="bordered"
         />
-        <Select
-          classNames={{
-            label: "text-[var(--app-ink)]",
-            popoverContent: "bg-[var(--app-panel)] text-[var(--app-ink)]",
-            trigger: "bg-[var(--app-panel)] text-[var(--app-ink)]",
-            value: "text-[var(--app-ink)]",
-          }}
-          disallowEmptySelection
-          label="结果模式"
-          labelPlacement="outside"
-          onSelectionChange={(keys) => {
-            const [mode] = [...keys]
-            if (typeof mode === "string") {
-              update("mode", mode as ExperienceSearchRequest["mode"])
-            }
-          }}
-          radius="lg"
-          renderValue={() => selectedModeLabel}
-          selectedKeys={new Set([state.mode])}
-          validationBehavior="aria"
-          variant="bordered"
-        >
-          {modeOptions.map((option) => (
-            <SelectItem key={option.key}>{option.label}</SelectItem>
-          ))}
-        </Select>
+        <label className="grid gap-1">
+          <span className="text-sm font-medium text-[var(--app-ink)]">结果模式</span>
+          <span className="relative">
+            <select
+              className="h-10 w-full appearance-none rounded-lg border-2 border-[var(--app-border)] bg-[var(--app-panel)] px-3 pr-9 text-sm font-medium text-[var(--app-ink)] shadow-sm outline-none transition-colors hover:border-[var(--app-accent)] focus:border-[var(--app-accent)] focus:ring-2 focus:ring-[var(--app-accent)]/20"
+              onChange={(event) =>
+                update("mode", event.target.value as ExperienceSearchRequest["mode"])
+              }
+              value={state.mode}
+            >
+              {modeOptions.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[var(--app-muted)]"
+            />
+          </span>
+        </label>
         <Input
           errorMessage={errors.topK}
           isInvalid={Boolean(errors.topK)}
