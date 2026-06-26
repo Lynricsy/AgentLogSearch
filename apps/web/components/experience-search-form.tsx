@@ -49,6 +49,8 @@ export function ExperienceSearchForm({
   ) {
     onChange({ ...state, [key]: value })
   }
+  const selectedModeLabel =
+    modeOptions.find((option) => option.key === state.mode)?.label ?? modeOptions[0].label
 
   return (
     <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-panel)] p-4">
@@ -69,6 +71,12 @@ export function ExperienceSearchForm({
           variant="bordered"
         />
         <Select
+          classNames={{
+            label: "text-[var(--app-ink)]",
+            popoverContent: "bg-[var(--app-panel)] text-[var(--app-ink)]",
+            trigger: "bg-[var(--app-panel)] text-[var(--app-ink)]",
+            value: "text-[var(--app-ink)]",
+          }}
           disallowEmptySelection
           label="结果模式"
           labelPlacement="outside"
@@ -79,7 +87,8 @@ export function ExperienceSearchForm({
             }
           }}
           radius="lg"
-          selectedKeys={[state.mode]}
+          renderValue={() => selectedModeLabel}
+          selectedKeys={new Set([state.mode])}
           validationBehavior="aria"
           variant="bordered"
         >
