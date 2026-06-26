@@ -5,8 +5,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { afterEach, describe, expect, it } from "vitest"
-import { type ApiClient, ApiClientError, HISTORY_RESULT_DISCLAIMER } from "./api-client"
-import { createAgentLogSearchMcpServer } from "./server"
+import { type ApiClient, ApiClientError } from "./api-client"
+import { createAgentLogSearchMcpServer, HISTORY_RESULT_DISCLAIMER } from "./server"
 
 const timestamp = "2026-06-16T09:00:00.000Z"
 const attemptPayload = {

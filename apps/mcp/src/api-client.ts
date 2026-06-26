@@ -17,7 +17,6 @@ import { z } from "zod"
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000/api"
 export const DEFAULT_API_TIMEOUT_MS = 120_000
-export const HISTORY_RESULT_DISCLAIMER = "历史执行结果不等于当前环境中的操作建议。"
 
 export type ApiClientOptions = {
   readonly baseUrl?: string

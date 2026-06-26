@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { ApiClientError } from "./api-client.js"
+import { ApiClientError, createApiClient } from "./api-client.js"
 import { createAgentLogSearchMcpServer } from "./server.js"
 
 try {
-  const server = createAgentLogSearchMcpServer()
+  const server = createAgentLogSearchMcpServer({ apiClient: createApiClient() })
   await server.connect(new StdioServerTransport())
 } catch (error) {
   console.error(formatStartupError(error))

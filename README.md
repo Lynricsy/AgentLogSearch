@@ -716,9 +716,26 @@ tokens, score breakdown, and redacted evidence summaries. It intentionally avoid
 
 ## MCP Read-Only Tools
 
-The `apps/mcp` package exposes a stdio MCP server for local clients that need evidence-aware history
-context without direct database access. It calls the HTTP API only, so start the API/Web entrypoint
-first and keep `EXPERIENCE_SEARCH_ENABLED=true`.
+The project exposes read-only MCP tools in two transports:
+
+- Streamable HTTP: the API serves `POST/GET/DELETE /mcp`, and Web proxies the same path as
+  `http://127.0.0.1:${WEB_PORT:-3000}/mcp`, so MCP clients can use the same public port as the Web
+  UI.
+- stdio: the `apps/mcp` package still provides a local command entrypoint for clients that prefer
+  spawning an MCP process.
+
+Both transports call the HTTP API only, so start the API/Web entrypoint first and keep
+`EXPERIENCE_SEARCH_ENABLED=true`.
+
+For Streamable HTTP clients, point the client at the Web port:
+
+```text
+http://127.0.0.1:3000/mcp
+```
+
+In Docker demo mode, the Web container proxies `/mcp` to the API service through
+`MCP_PROXY_TARGET=http://api:3001`. In source development, `.env.example` sets
+`MCP_PROXY_TARGET=http://localhost:3001`.
 
 ```bash
 pnpm --filter mcp build

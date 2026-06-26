@@ -119,6 +119,7 @@ services:
     environment:
       NODE_ENV: production
       API_PROXY_TARGET: http://api:3001
+      MCP_PROXY_TARGET: http://api:3001
     ports:
       - "${WEB_PORT:-3000}:3000"
     healthcheck:

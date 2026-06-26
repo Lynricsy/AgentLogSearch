@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @agent-log-search/shared build && tsc -p tsconfig.build.json",
+    "build": "pnpm --filter mcp build && tsc -p tsconfig.build.json",
     "dev": "nest start --watch --tsc -p tsconfig.build.json",
     "start": "node --enable-source-maps dist/main.js",
     "start:dev": "nest start --watch --tsc -p tsconfig.build.json",
@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@agent-log-search/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/cli": "^11.0.14",
     "@nestjs/common": "^11.1.27",
     "@nestjs/config": "^4.0.4",
@@ -34,6 +35,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "tree-sitter": "^0.21.1",
+    "mcp": "workspace:*",
     "tree-sitter-typescript": "^0.23.2"
   },
   "devDependencies": {

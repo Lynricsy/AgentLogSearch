@@ -8,6 +8,8 @@ module.exports = {
   testMatch: ["<rootDir>/test/**/*.e2e-spec.ts"],
   moduleNameMapper: {
     "^@agent-log-search/shared$": "<rootDir>/../../packages/shared/src/index.ts",
+    "^mcp/api-client$": "<rootDir>/../mcp/src/api-client.ts",
+    "^mcp/server$": "<rootDir>/../mcp/src/server.ts",
     "^\\./constants\\.js$": "<rootDir>/../../packages/shared/src/constants.ts",
     "^\\./domain\\.js$": "<rootDir>/../../packages/shared/src/domain.ts",
     "^\\./embeddings\\.js$": "<rootDir>/../../packages/shared/src/embeddings.ts",
@@ -19,16 +21,24 @@ module.exports = {
     "^\\./sources\\.js$": "<rootDir>/../../packages/shared/src/sources.ts",
     "^\\./app\\.module\\.js$": "<rootDir>/src/app.module.ts",
     "^\\./bootstrap\\.js$": "<rootDir>/src/bootstrap.ts",
+    "^\\./mcp-http\\.js$": "<rootDir>/src/mcp-http.ts",
     "^\\./database-url\\.js$": "<rootDir>/src/database/database-url.ts",
     "^\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\.\\./database/(.*)\\.js$": "<rootDir>/src/database/$1.ts",
     "^\\./env-file-config\\.js$": "<rootDir>/src/env-file-config.ts",
     "^\\./evidence/(.*)\\.js$": "<rootDir>/src/evidence/$1.ts",
     "^\\.\\./evidence/(.*)\\.js$": "<rootDir>/src/evidence/$1.ts",
-    "^\\./(command|errors|paths|patches|validation|redaction|excerpt)/(.*)\\.js$":
-      "<rootDir>/src/evidence/$1/$2.ts",
-    "^\\.\\./(command|errors|paths|patches|validation|redaction|excerpt)/(.*)\\.js$":
-      "<rootDir>/src/evidence/$1/$2.ts",
+    "^\\./command/(command-classifier|command-extractor|shell-tokenizer)\\.js$":
+      "<rootDir>/src/evidence/command/$1.ts",
+    "^\\./errors/(error-extractor|error-fingerprint|error-normalizer)\\.js$":
+      "<rootDir>/src/evidence/errors/$1.ts",
+    "^\\./paths/(path-extractor|path-normalizer)\\.js$": "<rootDir>/src/evidence/paths/$1.ts",
+    "^\\./patches/(patch-parser)\\.js$": "<rootDir>/src/evidence/patches/$1.ts",
+    "^\\./validation/(cargo-test-output-parser|generic-process-parser|go-test-output-parser|jest-output-parser|pytest-output-parser|validation-output-parser|vitest-output-parser)\\.js$":
+      "<rootDir>/src/evidence/validation/$1.ts",
+    "^\\./redaction/(secret-redactor)\\.js$": "<rootDir>/src/evidence/redaction/$1.ts",
+    "^\\.\\./redaction/(secret-redactor)\\.js$": "<rootDir>/src/evidence/redaction/$1.ts",
+    "^\\./excerpt/(evidence-excerpt-builder)\\.js$": "<rootDir>/src/evidence/excerpt/$1.ts",
     "^\\./(command-classifier|command-extractor|shell-tokenizer)\\.js$":
       "<rootDir>/src/evidence/command/$1.ts",
     "^\\./(error-extractor|error-fingerprint|error-normalizer)\\.js$":
@@ -63,9 +73,12 @@ module.exports = {
     "^\\.\\./embeddings/(.*)\\.js$": "<rootDir>/src/embeddings/$1.ts",
     "^\\./(embedding[^/]*|embeddings[^/]*)\\.js$": "<rootDir>/src/embeddings/$1.ts",
     "^\\./parsers-test-support\\.js$": "<rootDir>/src/parsers-test-support.ts",
-    "^\\./parsers/(.*)\\.js$": "<rootDir>/src/parsers/$1.ts",
-    "^\\.\\./parsers/(.*)\\.js$": "<rootDir>/src/parsers/$1.ts",
-    "^\\.\\.\\/\\.\\.\\/parsers/(.*)\\.js$": "<rootDir>/src/parsers/$1.ts",
+    "^\\./parsers/(agent-jsonl-parsers|content-normalizer|generic-json-parsers|generic-markdown-parser|index|json-parse|jsonl-reader|opencode-sqlite-parser|parser-errors|parser-registry|parser-types|record-access|session-builder|source-guards|source-readers|trace-event-builders)\\.js$":
+      "<rootDir>/src/parsers/$1.ts",
+    "^\\.\\./parsers/(agent-jsonl-parsers|content-normalizer|generic-json-parsers|generic-markdown-parser|index|json-parse|jsonl-reader|opencode-sqlite-parser|parser-errors|parser-registry|parser-types|record-access|session-builder|source-guards|source-readers|trace-event-builders)\\.js$":
+      "<rootDir>/src/parsers/$1.ts",
+    "^\\.\\.\\/\\.\\.\\/parsers/(agent-jsonl-parsers|content-normalizer|generic-json-parsers|generic-markdown-parser|index|json-parse|jsonl-reader|opencode-sqlite-parser|parser-errors|parser-registry|parser-types|record-access|session-builder|source-guards|source-readers|trace-event-builders)\\.js$":
+      "<rootDir>/src/parsers/$1.ts",
     "^\\./(agent-jsonl-parsers|content-normalizer|generic-json-parsers|generic-markdown-parser|json-parse|jsonl-reader|opencode-sqlite-parser|parser-errors|parser-registry|parser-types|record-access|session-builder|source-guards|source-readers|trace-event-builders)\\.js$":
       "<rootDir>/src/parsers/$1.ts",
     "^\\./pg\\.service\\.js$": "<rootDir>/src/database/pg.service.ts",

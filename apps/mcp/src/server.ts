@@ -10,12 +10,7 @@ import {
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
-import {
-  type ApiClient,
-  ApiClientError,
-  createApiClient,
-  HISTORY_RESULT_DISCLAIMER,
-} from "./api-client.js"
+import type { ApiClient } from "./api-client.js"
 
 type ToolKind = "experience_search" | "failed_attempt_check" | "experience_evidence"
 type ToolPayload =
@@ -23,22 +18,22 @@ type ToolPayload =
   | ExperienceFailedAttemptCheckResponse
   | ExperienceSearchResponse
 
+export const HISTORY_RESULT_DISCLAIMER = "历史执行结果不等于当前环境中的操作建议。"
+
 export type AgentLogSearchMcpServerOptions = {
-  readonly apiClient?: ApiClient
+  readonly apiClient: ApiClient
 }
 
 const experienceIdSchema = z.object({
   id: z.string().trim().regex(/^\d+$/, "id must be an unsigned integer string"),
 })
 
-export function createAgentLogSearchMcpServer(
-  options: AgentLogSearchMcpServerOptions = {},
-): McpServer {
+export function createAgentLogSearchMcpServer(options: AgentLogSearchMcpServerOptions): McpServer {
   const server = new McpServer({
     name: "agent-log-search",
     version: "0.1.0",
   })
-  const apiClient = options.apiClient ?? createApiClient()
+  const { apiClient } = options
 
   server.registerTool(
     "search_engineering_history",
@@ -379,7 +374,7 @@ function round(value: number): number {
 }
 
 function describeError(error: unknown) {
-  if (error instanceof ApiClientError) {
+  if (isApiClientLikeError(error)) {
     return {
       code: error.code,
       details: error.details,
@@ -401,4 +396,18 @@ function describeError(error: unknown) {
     message: "MCP 工具调用失败。",
     status: 0,
   }
+}
+
+type ApiClientLikeError = Error & {
+  readonly code: string
+  readonly details?: unknown
+  readonly status: number
+}
+
+function isApiClientLikeError(error: unknown): error is ApiClientLikeError {
+  return (
+    error instanceof Error &&
+    typeof (error as { readonly code?: unknown }).code === "string" &&
+    typeof (error as { readonly status?: unknown }).status === "number"
+  )
 }

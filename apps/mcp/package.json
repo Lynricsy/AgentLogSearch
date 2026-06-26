@@ -6,6 +6,16 @@
   "bin": {
     "agent-log-search-mcp": "./dist/main.js"
   },
+  "exports": {
+    "./api-client": {
+      "types": "./src/api-client.ts",
+      "import": "./dist/api-client.js"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "import": "./dist/server.js"
+    }
+  },
   "scripts": {
     "build": "pnpm --filter @agent-log-search/shared build && tsc -p tsconfig.build.json",
     "dev": "tsx src/main.ts",
